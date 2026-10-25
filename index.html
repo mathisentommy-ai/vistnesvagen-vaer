@@ -92,7 +92,7 @@ th{background:#edf3f8}
 
 <script>
 const HIST="https://randaberg-vaerhistorikk.vercel.app/api/historikk";
-const FUTURE="https://randaberg-vaervarsel-24t.vercel.app/api/forecast";
+const FUTURE="/api/forecast";
 let history=null,forecast=null,station="both",range=24,day=0,variable="precipitation";
 const $=id=>document.getElementById(id);
 const fmt=n=>typeof n==="number"?n.toLocaleString("nb-NO",{maximumFractionDigits:1}):"–";
