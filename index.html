@@ -1,0 +1,243 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vistnesvågen – Værdashboard</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef3f7;color:#203346;font-family:Arial,sans-serif}
+header{background:#163954;color:white;padding:24px}
+h1{margin:0 0 8px;font-size:27px}
+main{max-width:1100px;margin:auto;padding:15px}
+section{background:white;border-radius:12px;padding:18px;margin-bottom:15px}
+h2{font-size:21px;margin-top:0}
+button{padding:10px 14px;margin:4px;border:0;border-radius:7px;background:#e7edf3;color:#203346;font-size:15px}
+button.active{background:#176b9b;color:white}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px}
+.card{background:#edf4f9;border-radius:9px;padding:13px}
+.card strong{display:block;font-size:24px;margin-top:7px}
+small,.muted{color:#647588}
+.graph{overflow-x:auto;border:1px solid #e0e7ed;border-radius:9px;margin-top:14px}
+svg{width:100%;min-width:680px;display:block}
+#detail,#historyDetail{background:#edf4fa;padding:12px;border-radius:8px;margin-top:10px}
+table{width:100%;border-collapse:collapse;min-width:560px}
+td,th{padding:9px;border-bottom:1px solid #e1e8ee;text-align:left}
+th{background:#edf3f8}
+.scroll{overflow:auto}
+.error{color:#a52525}
+</style>
+</head>
+<body>
+<header>
+<h1>Vistnesvågen – Vær og lokale varsler</h1>
+<div>Randaberg · 58.9834382 N, 5.5719462 Ø</div>
+</header>
+<main>
+<section>
+<h2>Datakilder</h2>
+<p id="status">Henter værdata …</p>
+<button onclick="loadAll()">Oppdater målinger</button>
+</section>
+
+<section>
+<h2>Historisk nedbør – Frost</h2>
+<p>Faktiske målinger fra lokale værstasjoner.</p>
+<div id="stationButtons">
+<button class="active" onclick="chooseStation('both',this)">Begge</button>
+<button onclick="chooseStation('tananger',this)">Tananger</button>
+<button onclick="chooseStation('valand',this)">Våland</button>
+</div>
+<div class="cards" id="historyCards"></div>
+<h3>Timesnedbør siste 72 timer</h3>
+<div id="historyLegend"></div>
+<div class="graph">
+<svg id="historyGraph" viewBox="0 0 960 310"></svg>
+</div>
+<div id="historyDetail">Trykk på grafen for detaljer.</div>
+</section>
+
+<section>
+<h2>Fremtidig værvarsel – MET Norway</h2>
+<div id="rangeButtons">
+<button class="active" onclick="chooseRange(24,this)">24 timer</button>
+<button onclick="chooseRange(72,this)">72 timer</button>
+<button onclick="chooseRange(120,this)">5 dager</button>
+<button onclick="chooseRange(216,this)">9 dager</button>
+</div>
+<div id="dayButtons" style="display:none"></div>
+<div class="cards" id="forecastCards"></div>
+<h3>Værgraf</h3>
+<div id="variableButtons">
+<button class="active" onclick="chooseVariable('precipitation',this)">Regn</button>
+<button onclick="chooseVariable('wind',this)">Vind</button>
+<button onclick="chooseVariable('temperature',this)">Temperatur</button>
+</div>
+<div class="graph">
+<svg id="forecastGraph" viewBox="0 0 960 310"></svg>
+</div>
+<div id="detail">Trykk på grafen for detaljer.</div>
+<p id="forecastNote" class="muted"></p>
+<button onclick="toggleTable()">Vis/skjul prognosetabell</button>
+<div id="tableArea" class="scroll" hidden></div>
+</section>
+
+<section>
+<h2>Lokale varselkommentarer</h2>
+<div id="alerts">Venter på prognosen …</div>
+<p class="muted">Dette er lokale indikatorer, ikke offisielle farevarsler. Flomfare må også vurderes mot frost, snøsmelting og avrenning.</p>
+</section>
+</main>
+
+<script>
+const HIST="https://randaberg-vaerhistorikk.vercel.app/api/historikk";
+const FUTURE="https://randaberg-vaervarsel-24t.vercel.app/api/forecast";
+let history=null,forecast=null,station="both",range=24,day=0,variable="precipitation";
+const $=id=>document.getElementById(id);
+const fmt=n=>typeof n==="number"?n.toLocaleString("nb-NO",{maximumFractionDigits:1}):"–";
+const time=t=>new Intl.DateTimeFormat("nb-NO",{timeZone:"Europe/Oslo",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(t));
+const color={SN44552:"#1679b4",SN44640:"#a54ca4"};
+
+function activate(parent,button){
+document.querySelectorAll("#"+parent+" button").forEach(b=>b.classList.remove("active"));
+button.classList.add("active");
+}
+function chooseStation(v,b){station=v;activate("stationButtons",b);renderHistory()}
+function chooseRange(v,b){range=v;day=0;activate("rangeButtons",b);renderForecast()}
+function chooseVariable(v,b){variable=v;activate("variableButtons",b);renderForecast()}
+function stations(){
+return (history?.stations||[]).filter(s=>
+(s.id==="SN44552"&&(station==="both"||station==="tananger"))||
+(s.id==="SN44640"&&(station==="both"||station==="valand")));
+}
+function svgNode(tag,attrs,text){
+const n=document.createElementNS("http://www.w3.org/2000/svg",tag);
+Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));
+if(text!==undefined)n.textContent=text;
+return n;
+}
+function graph(id,series,labels,unit,detailId){
+const svg=$(id);svg.replaceChildren();
+const values=series.flatMap(s=>s.values.filter(v=>typeof v==="number"));
+if(!values.length){svg.append(svgNode("text",{x:25,y:40},"Ingen data"));return}
+const N=Math.max(...series.map(s=>s.values.length));
+const min=Math.min(0,...values),max=Math.max(1,...values);
+const low=min-(max-min)*.08,high=max+(max-min)*.12;
+const x=i=>52+i*875/Math.max(1,N-1);
+const y=v=>20+(high-v)*230/(high-low);
+for(let j=0;j<=4;j++){
+const val=high-(high-low)*j/4,yy=y(val);
+svg.append(svgNode("line",{x1:52,x2:927,y1:yy,y2:yy,stroke:"#dfe7ed"}));
+svg.append(svgNode("text",{x:45,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(val)));
+}
+svg.append(svgNode("text",{x:8,y:12,fill:"#647588","font-size":12},unit));
+for(let i=0;i<N;i+=Math.max(1,Math.ceil(N/7))){
+if(labels[i])svg.append(svgNode("text",{x:x(i),y:289,"text-anchor":"middle",fill:"#647588","font-size":11},time(labels[i])));
+}
+series.forEach(s=>{
+let points=[];
+function flush(){
+if(points.length>1)svg.append(svgNode("polyline",{points:points.join(" "),fill:"none",stroke:s.color,"stroke-width":2.5}));
+points=[];
+}
+s.values.forEach((v,i)=>{
+if(typeof v==="number")points.push(x(i)+","+y(v));else flush();
+});
+flush();
+});
+for(let i=0;i<N;i++){
+const hit=svgNode("rect",{x:x(i)-7,y:18,width:14,height:237,fill:"transparent"});
+hit.addEventListener("click",()=>{
+$(detailId).textContent=time(labels[i])+" — "+series.map(s=>s.name+": "+(typeof s.values[i]==="number"?fmt(s.values[i])+" "+unit:"Mangler")).join(" | ");
+});
+svg.append(hit);
+}
+}
+function renderHistory(){
+const ss=stations();if(!ss.length)return;
+$("historyCards").innerHTML=ss.flatMap(s=>[24,72,168].map(h=>{
+const p=s.periods[h+"h"];
+return '<div class="card"><small>'+s.name+' · '+h+' timer</small><strong>'+fmt(p?.mm)+' mm</strong><small>'+(p?.complete?"Komplett":(p?.missingHours??"–")+" timer mangler")+'</small></div>';
+})).join("");
+$("historyLegend").innerHTML=ss.map(s=>'<span style="color:'+color[s.id]+'">● '+s.name+'</span> &nbsp; ').join("");
+const base=ss[0].periods["72h"].hourly;
+const labels=base.map(p=>p.time);
+const series=ss.map(s=>{
+const map=new Map(s.periods["72h"].hourly.map(p=>[p.time,p.mm]));
+return{name:s.name,color:color[s.id],values:labels.map(t=>map.get(t)??null)};
+});
+graph("historyGraph",series,labels,"mm/time","historyDetail");
+}
+function hours(){
+if(!forecast?.hours)return[];
+const now=Date.now();
+return forecast.hours.filter(h=>{
+const t=Date.parse(h.time);
+return Number.isFinite(t)&&t>=now-3600000&&t<now+range*3600000;
+}).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
+}
+function visibleHours(){
+const all=hours();
+if(range!==72)return all;
+return all.filter(h=>{
+const diff=(Date.parse(h.time)-Date.now())/3600000;
+return diff>=day*24-1&&diff<(day+1)*24;
+});
+}
+function renderForecast(){
+if(!forecast)return;
+$("dayButtons").style.display=range===72?"block":"none";
+if(range===72)$("dayButtons").innerHTML=[0,1,2].map(i=>'<button class="'+(day===i?"active":"")+'" onclick="day='+i+';renderForecast()">Døgn '+(i+1)+'</button>').join("");
+const rows=visibleHours();
+const nums=k=>rows.map(r=>r[k]).filter(v=>typeof v==="number");
+const rain=nums("precipitation"),wind=nums("wind"),gust=nums("gust"),temp=nums("temperature");
+const total=rain.reduce((a,b)=>a+b,0);
+$("forecastCards").innerHTML=[
+["Nedbør",rain.length?fmt(total)+" mm":"–"],
+["Maks vind",wind.length?fmt(Math.max(...wind))+" m/s":"–"],
+["Maks kast",gust.length?fmt(Math.max(...gust))+" m/s":"–"],
+["Temperatur",temp.length?fmt(Math.min(...temp))+" til "+fmt(Math.max(...temp))+" °C":"–"]
+].map(([name,value])=>'<div class="card"><small>'+name+'</small><strong>'+value+'</strong></div>').join("");
+const unit=variable==="temperature"?"°C":variable==="wind"?"m/s":"mm";
+const series=[{name:variable==="temperature"?"Temperatur":variable==="wind"?"Vind":"Nedbør",color:"#1679b4",values:rows.map(r=>typeof r[variable]==="number"?r[variable]:null)}];
+if(variable==="wind")series.push({name:"Vindkast",color:"#b15b9b",values:rows.map(r=>typeof r.gust==="number"?r.gust:null)});
+graph("forecastGraph",series,rows.map(r=>r.time),unit,"detail");
+$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. For 5 og 9 dager kan tidsoppløsningen variere; nedbørsummen er foreløpig og må kvalitetssikres.";
+$("tableArea").innerHTML='<table><thead><tr><th>Tid</th><th>Regn</th><th>Vind</th><th>Kast</th><th>Temp.</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+time(r.time)+'</td><td>'+fmt(r.precipitation)+'</td><td>'+fmt(r.wind)+'</td><td>'+fmt(r.gust)+'</td><td>'+fmt(r.temperature)+'</td></tr>').join("")+'</tbody></table>';
+renderAlerts();
+}
+function renderAlerts(){
+const items=hours().filter(r=>typeof r.gust==="number"&&r.gust>=17||typeof r.precipitation==="number"&&r.precipitation>=4);
+$("alerts").innerHTML=items.length?items.slice(0,12).map(r=>{
+const severe=(r.gust??0)>=25||(r.precipitation??0)>=8;
+const message=[];
+if((r.gust??0)>=17)message.push("Vindkast "+fmt(r.gust)+" m/s");
+if((r.precipitation??0)>=4)message.push("Regn "+fmt(r.precipitation)+" mm");
+return '<p style="border-left:4px solid '+(severe?"#cf3636":"#e2aa25")+';padding:9px;background:#f7f9fb"><b>'+time(r.time)+'</b> – '+message.join(", ")+'</p>';
+}).join(""):"Ingen lokale terskler overskredet i valgt periode.";
+}
+function toggleTable(){$("tableArea").hidden=!$("tableArea").hidden}
+async function loadAll(){
+$("status").textContent="Henter historikk og prognose …";
+const results=await Promise.allSettled([
+fetch(HIST,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()}),
+fetch(FUTURE,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()})
+]);
+const messages=[];
+if(results[0].status==="fulfilled"){
+history=results[0].value;
+renderHistory();
+messages.push("Historikk: OK");
+}else messages.push("Historikk: "+results[0].reason.message);
+if(results[1].status==="fulfilled"){
+forecast=results[1].value;
+renderForecast();
+messages.push("Prognose: OK");
+}else messages.push("Prognose: "+results[1].reason.message);
+$("status").textContent=messages.join(" | ")+" · "+new Date().toLocaleTimeString("nb-NO");
+}
+loadAll();
+</script>
+</body>
+</html>
