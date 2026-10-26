@@ -20,6 +20,7 @@ button.active{background:#176b9b;color:white}
 small,.muted{color:#647588}
 .graph{overflow-x:auto;border:1px solid #e0e7ed;border-radius:9px;margin-top:14px}
 svg{width:100%;min-width:680px;display:block}
+#forecastGraph{min-width:680px}
 #detail,#historyDetail{background:#edf4fa;padding:12px;border-radius:8px;margin-top:10px}
 table{width:100%;border-collapse:collapse;min-width:560px}
 td,th{padding:9px;border-bottom:1px solid #e1e8ee;text-align:left}
@@ -86,6 +87,10 @@ th{background:#edf3f8}
 <button onclick="chooseVariable('wind',this)">Vind</button>
 <button onclick="chooseVariable('temperature',this)">Temperatur</button>
 </div>
+<div id="forecastRainModeButtons" style="display:none;margin-top:8px">
+<button class="active" onclick="chooseForecastRainMode('rolling',this)">Rullende døgn</button>
+<button onclick="chooseForecastRainMode('calendar',this)">Kalenderdøgn</button>
+</div>
 <div class="graph">
 <svg id="forecastGraph" viewBox="0 0 960 310"></svg>
 </div>
@@ -106,7 +111,7 @@ th{background:#edf3f8}
 const HIST="https://randaberg-vaerhistorikk.vercel.app/api/historikk";
 const FUTURE="/api/forecast";
 let history=null,forecast=null,station="both",range=24,day=0,variable="precipitation";
-let historyRange=24,historyMode="rolling";
+let historyRange=24,historyMode="rolling",forecastRainMode="rolling";
 const $=id=>document.getElementById(id);
 const fmt=n=>typeof n==="number"?n.toLocaleString("nb-NO",{maximumFractionDigits:1}):"–";
 const time=t=>new Intl.DateTimeFormat("nb-NO",{timeZone:"Europe/Oslo",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(t));
@@ -121,6 +126,7 @@ function chooseHistoryRange(v,b){historyRange=v;activate("historyRangeButtons",b
 function chooseHistoryMode(v,b){historyMode=v;activate("historyModeButtons",b);renderHistory()}
 function chooseRange(v,b){range=v;day=0;activate("rangeButtons",b);renderForecast()}
 function chooseVariable(v,b){variable=v;activate("variableButtons",b);renderForecast()}
+function chooseForecastRainMode(v,b){forecastRainMode=v;activate("forecastRainModeButtons",b);renderForecast()}
 function stations(){
 return (history?.stations||[]).filter(s=>
 (s.id==="SN44552"&&(station==="both"||station==="tananger"))||
@@ -289,25 +295,150 @@ const diff=(Date.parse(h.time)-Date.now())/3600000;
 return diff>=day*24-1&&diff<(day+1)*24;
 });
 }
+// Prognosegraf: X-koordinatene følger faktisk klokkeslett, ikke antall datapunkter.
+function forecastTimeGraph(rows,series,unit){
+const svg=$("forecastGraph");svg.replaceChildren();
+const times=rows.map(r=>Date.parse(r.time));
+const valid=times.filter(Number.isFinite);
+const values=series.flatMap(s=>s.values.filter(v=>typeof v==="number"));
+if(!valid.length||!values.length){svg.append(svgNode("text",{x:28,y:45},"Ingen tilgjengelige prognosedata"));return}
+const t0=Math.min(...valid),t1=Math.max(t0+3600000,...valid);
+const low0=Math.min(0,...values),high0=Math.max(1,...values);
+const pad=Math.max(.5,(high0-low0)*.13),lo=low0-pad,hi=high0+pad;
+const x=t=>55+(t-t0)*870/(t1-t0);
+const y=v=>248-(v-lo)*215/(hi-lo);
+for(let j=0;j<=4;j++){
+const v=lo+(hi-lo)*j/4,yy=y(v);
+svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));
+svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)));
+}
+svg.append(svgNode("text",{x:9,y:14,fill:"#647588","font-size":12},unit));
+// Marker lokale midnatt ved å gå gjennom timeverdier; riktig også ved sommertid.
+let prev="",dayMarks=[];
+for(let t=Math.ceil(t0/3600000)*3600000;t<=t1;t+=3600000){
+const key=osloDay(new Date(t).toISOString());
+if(prev&&key!==prev)dayMarks.push({t,key});
+prev=key;
+}
+const step=Math.max(1,Math.ceil(dayMarks.length/8));
+dayMarks.forEach((d,i)=>{
+const xx=x(d.t);
+svg.append(svgNode("line",{x1:xx,x2:xx,y1:26,y2:250,stroke:"#cad7e2","stroke-dasharray":"3 5"}));
+if(i%step===0)svg.append(svgNode("text",{x:xx,y:287,"text-anchor":"middle",fill:"#647588","font-size":12},dateLabel(d.key)));
+});
+if(!dayMarks.length){
+for(let i=0;i<valid.length;i+=Math.max(1,Math.ceil(valid.length/5))){
+svg.append(svgNode("text",{x:x(valid[i]),y:287,"text-anchor":"middle",fill:"#647588","font-size":11},time(new Date(valid[i]).toISOString())));
+}}
+series.forEach(s=>{
+let segment=[];
+function flush(){
+if(segment.length>1)svg.append(svgNode("polyline",{points:segment.join(" "),fill:"none",stroke:s.color,"stroke-width":2.5,"stroke-linejoin":"round"}));
+segment=[];
+}
+s.values.forEach((v,i)=>{
+if(typeof v!=="number"||!Number.isFinite(times[i])){flush();return}
+segment.push(x(times[i])+","+y(v));
+});flush();
+// Små markører viser nøyaktig hvor datakilden har verdier.
+s.values.forEach((v,i)=>{
+if(typeof v!=="number"||!Number.isFinite(times[i]))return;
+const c=svgNode("circle",{cx:x(times[i]),cy:y(v),r:2.5,fill:s.color});
+c.addEventListener("click",()=>{$("detail").textContent=time(rows[i].time)+" — "+s.name+": "+fmt(v)+" "+unit});
+svg.append(c);
+});
+});
+// Gjennomsiktige treffområder over hele diagrammet.
+rows.forEach((r,i)=>{
+if(!Number.isFinite(times[i]))return;
+const hit=svgNode("rect",{x:x(times[i])-4,y:25,width:8,height:224,fill:"transparent"});
+hit.addEventListener("click",()=>{$("detail").textContent=time(r.time)+" — "+series.map(s=>s.name+": "+(typeof s.values[i]==="number"?fmt(s.values[i])+" "+unit:"Mangler")).join(" | ")});
+svg.append(hit);
+});
+}
+
+function forecastRainBins(rows){
+const now=Date.now(),count=Math.ceil(range/24);
+const groups=[];
+if(forecastRainMode==="rolling"){
+for(let i=0;i<count;i++){
+const a=now+i*86400000,b=a+86400000;
+groups.push({label:"Døgn "+(i+1),a,b,rows:rows.filter(r=>Date.parse(r.time)>=a&&Date.parse(r.time)<b)});
+}
+}else{
+const keys=[];
+for(let t=now;t<now+range*3600000;t+=3600000){
+const key=osloDay(new Date(t).toISOString());
+if(!keys.includes(key))keys.push(key);
+}
+keys.forEach(key=>groups.push({label:dateLabel(key),key,rows:rows.filter(r=>osloDay(r.time)===key)}));
+}
+return groups.map(g=>{
+const known=g.rows.filter(r=>typeof r.precipitation==="number");
+const missing=g.rows.length-known.length;
+// Et punkt med seks timers mellomrom kan ikke uten videre behandles som timesnedbør.
+const intervals=g.rows.slice(1).map((r,i)=>(Date.parse(r.time)-Date.parse(g.rows[i].time))/3600000);
+const coarse=intervals.some(h=>h>1.1);
+const mm=known.length&&!missing&&!coarse?known.reduce((a,r)=>a+r.precipitation,0):null;
+return {...g,mm,missing,coarse,observed:known.length};
+});
+}
+function forecastRainBars(rows){
+const svg=$("forecastGraph");svg.replaceChildren();
+const bins=forecastRainBins(rows);
+const valid=bins.filter(b=>typeof b.mm==="number");
+const max=Math.max(1,...valid.map(b=>b.mm));
+const y=v=>248-v*204/(max*1.2);
+for(let j=0;j<=4;j++){
+const v=max*1.2*j/4,yy=y(v);
+svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));
+svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)));
+}
+svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm/døgn"));
+const w=860/Math.max(1,bins.length);
+bins.forEach((b,i)=>{
+const cx=65+(i+.5)*w;
+if(typeof b.mm==="number"){
+const bw=Math.min(64,w*.58),top=y(b.mm);
+const bar=svgNode("rect",{x:cx-bw/2,y:top,width:bw,height:Math.max(1,248-top),rx:3,fill:"#1679b4"});
+bar.addEventListener("click",()=>{$("detail").textContent=b.label+": "+fmt(b.mm)+" mm"});
+svg.append(bar);
+svg.append(svgNode("text",{x:cx,y:Math.max(24,top-8),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},fmt(b.mm)));
+}else{
+svg.append(svgNode("text",{x:cx,y:239,"text-anchor":"middle",fill:"#8997a4","font-size":15},"–"));
+}
+svg.append(svgNode("text",{x:cx,y:282,"text-anchor":"middle",fill:"#647588","font-size":bins.length>7?11:13},b.label));
+});
+$("detail").textContent="Døgn med manglende eller ikke-timesoppløste nedbørsdata vises blankt (–).";
+}
 function renderForecast(){
 if(!forecast)return;
-$("dayButtons").style.display=range===72?"block":"none";
+const dailyRain=variable==="precipitation"&&range>24;
+$("forecastRainModeButtons").style.display=dailyRain?"block":"none";
+$("dayButtons").style.display=range===72&&!dailyRain?"block":"none";
 if(range===72)$("dayButtons").innerHTML=[0,1,2].map(i=>'<button class="'+(day===i?"active":"")+'" onclick="day='+i+';renderForecast()">Døgn '+(i+1)+'</button>').join("");
-const rows=visibleHours();
+const rows=dailyRain?hours():visibleHours();
 const nums=k=>rows.map(r=>r[k]).filter(v=>typeof v==="number");
 const rain=nums("precipitation"),wind=nums("wind"),gust=nums("gust"),temp=nums("temperature");
-const total=rain.reduce((a,b)=>a+b,0);
+const bins=dailyRain?forecastRainBins(rows):[];
+const rainSum=dailyRain?bins.filter(b=>typeof b.mm==="number").reduce((a,b)=>a+b.mm,0):rain.reduce((a,b)=>a+b,0);
+const rainComplete=dailyRain?bins.length>0&&bins.every(b=>typeof b.mm==="number"):rain.length===rows.length&&rows.length>0;
 $("forecastCards").innerHTML=[
-["Nedbør",rain.length?fmt(total)+" mm":"–"],
+["Nedbør",(dailyRain?bins.some(b=>typeof b.mm==="number"):rain.length)?fmt(rainSum)+" mm"+(rainComplete?"":" (ufullstendig)"):"–"],
 ["Maks vind",wind.length?fmt(Math.max(...wind))+" m/s":"–"],
 ["Maks kast",gust.length?fmt(Math.max(...gust))+" m/s":"–"],
 ["Temperatur",temp.length?fmt(Math.min(...temp))+" til "+fmt(Math.max(...temp))+" °C":"–"]
 ].map(([name,value])=>'<div class="card"><small>'+name+'</small><strong>'+value+'</strong></div>').join("");
+if(dailyRain){
+forecastRainBars(rows);
+$("forecastNote").textContent="Nedbør per "+(forecastRainMode==="rolling"?"rullende 24-timersperiode":"kalenderdøgn")+". Manglende eller grovere oppløste nedbørsverdier vises blankt, ikke som 0 mm. Sumkortet kan være ufullstendig.";
+}else{
 const unit=variable==="temperature"?"°C":variable==="wind"?"m/s":"mm";
 const series=[{name:variable==="temperature"?"Temperatur":variable==="wind"?"Vind":"Nedbør",color:"#1679b4",values:rows.map(r=>typeof r[variable]==="number"?r[variable]:null)}];
 if(variable==="wind")series.push({name:"Vindkast",color:"#b15b9b",values:rows.map(r=>typeof r.gust==="number"?r.gust:null)});
-graph("forecastGraph",series,rows.map(r=>r.time),unit,"detail");
-$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. For 5 og 9 dager kan tidsoppløsningen variere; nedbørsummen er foreløpig og må kvalitetssikres.";
+forecastTimeGraph(rows,series,unit);
+$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. Tidsaksen følger faktiske klokkeslett; prikker viser tilgjengelige prognoseverdier. Manglende verdier vises ikke som null.";
+}
 $("tableArea").innerHTML='<table><thead><tr><th>Tid</th><th>Regn</th><th>Vind</th><th>Kast</th><th>Temp.</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+time(r.time)+'</td><td>'+fmt(r.precipitation)+'</td><td>'+fmt(r.wind)+'</td><td>'+fmt(r.gust)+'</td><td>'+fmt(r.temperature)+'</td></tr>').join("")+'</tbody></table>';
 renderAlerts();
 }
