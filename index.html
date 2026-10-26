@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="no">
 <head>
@@ -27,6 +26,9 @@ td,th{padding:9px;border-bottom:1px solid #e1e8ee;text-align:left}
 th{background:#edf3f8}
 .scroll{overflow:auto}
 .error{color:#a52525}
+#historyGraph{min-width:600px}
+#historyNote{margin-top:9px;font-size:13px;line-height:1.5}
+#historyLegend{margin-top:9px}
 </style>
 </head>
 <body>
@@ -50,12 +52,22 @@ th{background:#edf3f8}
 <button onclick="chooseStation('valand',this)">Våland</button>
 </div>
 <div class="cards" id="historyCards"></div>
-<h3>Timesnedbør siste 72 timer</h3>
+<h3 id="historyTitle">Timesnedbør siste 24 timer</h3>
+<div id="historyRangeButtons">
+<button class="active" onclick="chooseHistoryRange(24,this)">24 timer</button>
+<button onclick="chooseHistoryRange(72,this)">72 timer</button>
+<button onclick="chooseHistoryRange(168,this)">168 timer</button>
+</div>
+<div id="historyModeButtons">
+<button class="active" onclick="chooseHistoryMode('rolling',this)">Rullende døgn</button>
+<button onclick="chooseHistoryMode('calendar',this)">Kalenderdøgn</button>
+</div>
 <div id="historyLegend"></div>
 <div class="graph">
-<svg id="historyGraph" viewBox="0 0 960 310"></svg>
+<svg id="historyGraph" viewBox="0 0 960 310" role="img" aria-label="Graf over historisk nedbør"></svg>
 </div>
 <div id="historyDetail">Trykk på grafen for detaljer.</div>
+<p id="historyNote" class="muted"></p>
 </section>
 
 <section>
@@ -94,6 +106,7 @@ th{background:#edf3f8}
 const HIST="https://randaberg-vaerhistorikk.vercel.app/api/historikk";
 const FUTURE="/api/forecast";
 let history=null,forecast=null,station="both",range=24,day=0,variable="precipitation";
+let historyRange=24,historyMode="rolling";
 const $=id=>document.getElementById(id);
 const fmt=n=>typeof n==="number"?n.toLocaleString("nb-NO",{maximumFractionDigits:1}):"–";
 const time=t=>new Intl.DateTimeFormat("nb-NO",{timeZone:"Europe/Oslo",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(t));
@@ -104,6 +117,8 @@ document.querySelectorAll("#"+parent+" button").forEach(b=>b.classList.remove("a
 button.classList.add("active");
 }
 function chooseStation(v,b){station=v;activate("stationButtons",b);renderHistory()}
+function chooseHistoryRange(v,b){historyRange=v;activate("historyRangeButtons",b);renderHistory()}
+function chooseHistoryMode(v,b){historyMode=v;activate("historyModeButtons",b);renderHistory()}
 function chooseRange(v,b){range=v;day=0;activate("rangeButtons",b);renderForecast()}
 function chooseVariable(v,b){variable=v;activate("variableButtons",b);renderForecast()}
 function stations(){
@@ -154,6 +169,87 @@ $(detailId).textContent=time(labels[i])+" — "+series.map(s=>s.name+": "+(typeo
 svg.append(hit);
 }
 }
+
+// Frost-observasjoner er tidsstemplet i UTC. Lokal dato brukes bare for kalenderdøgn.
+const osloDateFormatter=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"});
+const osloDay=t=>{
+const parts=osloDateFormatter.formatToParts(new Date(t));
+const get=k=>parts.find(p=>p.type===k).value;
+return get("year")+"-"+get("month")+"-"+get("day");
+};
+const dateLabel=key=>new Intl.DateTimeFormat("nb-NO",{day:"numeric",month:"short"}).format(new Date(key+"T12:00:00Z"));
+function historyGroups(ss){
+const period=historyRange+"h";
+const base=ss[0].periods?.[period]?.hourly||[];
+const stamps=base.map(p=>p.time);
+const stationMaps=ss.map(s=>new Map((s.periods?.[period]?.hourly||[]).map(p=>[p.time,p.mm])));
+if(historyRange===24){
+return {labels:stamps.map(time),groups:stamps.map((t,i)=>({label:time(t),indices:[i],expected:1})),stationMaps,stamps};
+}
+if(historyMode==="rolling"){
+const count=historyRange/24;
+const groups=[];
+for(let d=0;d<count;d++){
+const start=d*24;
+const indices=Array.from({length:24},(_,i)=>start+i).filter(i=>i<stamps.length);
+const first=stamps[indices[0]],last=stamps[indices[indices.length-1]];
+const label="Døgn "+(count-d);
+groups.push({label,indices,expected:24,description:first&&last?time(first)+" – "+time(last):label});
+}
+return {groups,stationMaps,stamps};
+}
+// De siste 3/7 lokale kalenderdatoene. Nåværende dato kan være ufullstendig.
+const unique=[...new Set(stamps.map(osloDay))];
+const keys=unique.slice(-historyRange/24);
+const groups=keys.map(key=>({
+label:dateLabel(key),
+indices:stamps.map((t,i)=>osloDay(t)===key?i:-1).filter(i=>i>=0),
+expected:null,
+description:dateLabel(key)
+}));
+return {groups,stationMaps,stamps};
+}
+function historyBarGraph(ss,groupData){
+const svg=$("historyGraph");svg.replaceChildren();
+const {groups,stationMaps,stamps}=groupData;
+if(!groups.length){svg.append(svgNode("text",{x:30,y:40},"Ingen data"));return}
+const series=ss.map((s,k)=>groups.map(g=>{
+const values=g.indices.map(i=>stationMaps[k].get(stamps[i]));
+const missing=values.filter(v=>typeof v!=="number").length;
+const sum=values.reduce((a,v)=>a+(typeof v==="number"?v:0),0);
+return {sum,missing,observed:values.length-missing};
+}));
+const max=Math.max(1,...series.flat().map(p=>p.sum));
+const ceiling=max*1.22;
+const y=v=>248-v*215/ceiling;
+for(let j=0;j<=4;j++){
+const value=ceiling*j/4,yy=y(value);
+svg.append(svgNode("line",{x1:55,x2:930,y1:yy,y2:yy,stroke:"#dfe7ed"}));
+svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(value)));
+}
+svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm"));
+const groupWidth=860/groups.length;
+const barWidth=Math.min(65,groupWidth/(ss.length+1)*.7);
+groups.forEach((g,i)=>{
+const cx=75+(i+.5)*groupWidth;
+ss.forEach((s,k)=>{
+const p=series[k][i];
+const x=cx+(k-(ss.length-1)/2)*barWidth*1.2-barWidth/2;
+const height=Math.max(0,248-y(p.sum));
+const rect=svgNode("rect",{x,y:y(p.sum),width:barWidth,height:Math.max(1,height),rx:3,fill:color[s.id]||"#1679b4",opacity:p.missing?"0.65":"0.9"});
+const detail=()=>{
+const incomplete=p.missing?" · "+p.missing+" manglende timer":"";
+const partial=historyMode==="calendar"?" · "+p.observed+" observerte timer":"";
+$("historyDetail").textContent=g.description+" — "+s.name+": "+fmt(p.sum)+" mm"+partial+incomplete+(historyMode==="calendar"?" (kalenderdøgn kan være delvis dekket)":"");
+};
+rect.addEventListener("click",detail);
+svg.append(rect);
+const val=svgNode("text",{x:x+barWidth/2,y:Math.max(24,y(p.sum)-7),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},fmt(p.sum)+(p.missing?"*":""));
+val.addEventListener("click",detail);svg.append(val);
+});
+svg.append(svgNode("text",{x:cx,y:280,"text-anchor":"middle",fill:"#647588","font-size":groups.length>3?12:14},g.label));
+});
+}
 function renderHistory(){
 const ss=stations();if(!ss.length)return;
 $("historyCards").innerHTML=ss.flatMap(s=>[24,72,168].map(h=>{
@@ -161,13 +257,21 @@ const p=s.periods[h+"h"];
 return '<div class="card"><small>'+s.name+' · '+h+' timer</small><strong>'+fmt(p?.mm)+' mm</strong><small>'+(p?.complete?"Komplett":(p?.missingHours??"–")+" timer mangler")+'</small></div>';
 })).join("");
 $("historyLegend").innerHTML=ss.map(s=>'<span style="color:'+color[s.id]+'">● '+s.name+'</span> &nbsp; ').join("");
-const base=ss[0].periods["72h"].hourly;
-const labels=base.map(p=>p.time);
-const series=ss.map(s=>{
-const map=new Map(s.periods["72h"].hourly.map(p=>[p.time,p.mm]));
-return{name:s.name,color:color[s.id],values:labels.map(t=>map.get(t)??null)};
-});
+$("historyDetail").textContent="Trykk på grafen for detaljer.";
+const data=historyGroups(ss);
+if(historyRange===24){
+$("historyTitle").textContent="Timesnedbør siste 24 timer";
+const labels=data.stamps;
+const series=ss.map((s,k)=>({name:s.name,color:color[s.id],values:labels.map(t=>data.stationMaps[k].get(t)??null)}));
 graph("historyGraph",series,labels,"mm/time","historyDetail");
+$("historyNote").textContent="24 timer vises som timesnedbør. Valget mellom rullende døgn og kalenderdøgn gjelder søylevisningene for 72 og 168 timer.";
+return;
+}
+$("historyTitle").textContent="Nedbør fordelt på "+(historyRange/24)+" "+(historyMode==="rolling"?"rullende døgn":"kalenderdøgn");
+historyBarGraph(ss,data);
+$("historyNote").textContent=historyMode==="rolling"
+?"Hver søyle viser 24 sammenhengende timer. Døgn 1 er eldste periode, siste søyle er nyeste. * markerer manglende målinger; summen er da ufullstendig."
+:"Søylene viser de siste "+(historyRange/24)+" kalenderdatoene (norsk tid). Dagens dato er ikke et ferdig døgn, og eldste dato kan mangle timer fordi datakilden bare leverer de siste "+historyRange+" timene. Trykk på en søyle for antall observerte timer. * markerer manglende målinger innenfor tilgjengelig periode.";
 }
 function hours(){
 if(!forecast?.hours)return[];
