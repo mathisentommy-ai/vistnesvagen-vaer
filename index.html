@@ -5,12 +5,15 @@
 <title>Vistnesvågen – Værdashboard</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#eef3f7;color:#203346;font-family:Arial,sans-serif}header{background:#163954;color:white;padding:24px}h1{margin:0 0 8px;font-size:27px}main{max-width:1100px;margin:auto;padding:15px}section{background:white;border-radius:12px;padding:18px;margin-bottom:15px}h2{font-size:21px;margin-top:0}button{padding:10px 14px;margin:4px;border:0;border-radius:7px;background:#e7edf3;color:#203346;font-size:15px}button.active{background:#176b9b;color:white}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px}.card{background:#edf4f9;border-radius:9px;padding:13px}.card strong{display:block;font-size:24px;margin-top:7px}small,.muted{color:#647588}.graph{overflow-x:auto;border:1px solid #e0e7ed;border-radius:9px;margin-top:14px}svg{width:100%;min-width:680px;display:block}#detail,#historyDetail{background:#edf4fa;padding:12px;border-radius:8px;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:560px}td,th{padding:9px;border-bottom:1px solid #e1e8ee;text-align:left}th{background:#edf3f8}.scroll{overflow:auto}#historyGraph{min-width:600px}#historyNote{margin-top:9px;font-size:13px;line-height:1.5}#historyLegend{margin-top:9px}
+
+/* Enkel 9-dagersoversikt */
+.simple-summary{line-height:1.6;margin:0 0 12px}.simple-scroll{overflow-x:auto}.simple-table{width:100%;border-collapse:collapse;min-width:680px}.simple-table th,.simple-table td{padding:12px 9px;border-bottom:1px solid #e1e7ed;text-align:left;white-space:nowrap}.simple-table th{font-size:13px;color:#506679}.simple-table td{font-size:14px}.simple-weather{font-size:23px;vertical-align:middle;margin-right:6px}.simple-note{font-size:13px;color:#617486;line-height:1.5;margin-top:12px}
 </style></head>
 <body><header><h1>Vistnesvågen – Vær og lokale varsler</h1><div>Randaberg · 58.9834382 N, 5.5719462 Ø</div></header><main>
 <section><h2>Datakilder</h2><p id="status">Henter værdata …</p><button onclick="loadAll()">Oppdater målinger</button></section>
 <section><h2>Historisk nedbør – Frost</h2><p>Faktiske målinger fra lokale værstasjoner.</p><div id="stationButtons"><button class="active" onclick="chooseStation('both',this)">Begge</button><button onclick="chooseStation('tananger',this)">Tananger</button><button onclick="chooseStation('valand',this)">Våland</button></div><div class="cards" id="historyCards"></div><h3 id="historyTitle">Timesnedbør siste 24 timer</h3><div id="historyRangeButtons"><button class="active" onclick="chooseHistoryRange(24,this)">24 timer</button><button onclick="chooseHistoryRange(72,this)">72 timer</button><button onclick="chooseHistoryRange(168,this)">168 timer</button></div><div id="historyModeButtons"><button class="active" onclick="chooseHistoryMode('rolling',this)">Rullende døgn</button><button onclick="chooseHistoryMode('calendar',this)">Kalenderdøgn</button></div><div id="historyLegend"></div><div class="graph"><svg id="historyGraph" viewBox="0 0 960 310" aria-label="Graf over historisk nedbør"></svg></div><div id="historyDetail">Trykk på grafen for detaljer.</div><p id="historyNote" class="muted"></p></section>
 <section><h2>Fremtidig værvarsel – MET Norway</h2><div id="rangeButtons"><button class="active" onclick="chooseRange(24,this)">24 timer</button><button onclick="chooseRange(72,this)">72 timer</button><button onclick="chooseRange(120,this)">5 dager</button><button onclick="chooseRange(216,this)">9 dager</button></div><div id="dayButtons" style="display:none"></div><div class="cards" id="forecastCards"></div><h3>Værgraf</h3><div id="variableButtons"><button class="active" onclick="chooseVariable('precipitation',this)">Regn</button><button onclick="chooseVariable('wind',this)">Vind</button><button onclick="chooseVariable('temperature',this)">Temperatur</button></div><div id="rainScenarioButtons" style="margin-top:8px"><button class="active" onclick="chooseRainScenario('expected',this)">Forventet nedbør</button><button onclick="chooseRainScenario('upper',this)">Øvre prognose</button></div><div id="forecastRainModeButtons" style="display:none;margin-top:8px"><button class="active" onclick="chooseForecastRainMode('rolling',this)">Rullende døgn</button><button onclick="chooseForecastRainMode('calendar',this)">Kalenderdøgn</button></div><div class="graph"><svg id="forecastGraph" viewBox="0 0 960 310"></svg></div><div id="detail">Trykk på grafen for detaljer.</div><p id="forecastNote" class="muted"></p><button onclick="toggleTable()">Vis/skjul prognosetabell</button><div id="tableArea" class="scroll" hidden></div></section>
-<section><h2>Lokale varselkommentarer</h2><div id="alerts">Venter på prognosen …</div><p class="muted">Dette er lokale indikatorer, ikke offisielle farevarsler. Flomfare må også vurderes mot frost, snøsmelting og avrenning.</p></section></main>
+<section><h2>Lokale varselkommentarer</h2><div id="alerts">Venter på prognosen …</div><p class="muted">Dette er lokale indikatorer, ikke offisielle farevarsler. Flomfare må også vurderes mot frost, snøsmelting og avrenning.</p></section><section id="simpleForecastSection"><h2>Været de neste 9 dagene</h2><p id="simpleSummary" class="simple-summary muted">Henter værdata …</p><div class="simple-scroll"><table class="simple-table"><thead><tr><th>Dag</th><th>Værforhold</th><th>Temperatur</th><th>Nedbør</th><th>Vind (kast)</th></tr></thead><tbody id="simpleRows"><tr><td colspan="5">Venter på prognosen …</td></tr></tbody></table></div><p class="simple-note">Nedbør: forventet–øvre prognosegrense i mm. Vind: høyeste prognostiserte vind og vindkast i m/s. Værikonene hentes fra METs værtypesymboler dersom de er tilgjengelige. «≈» betyr at et 6-timersintervall krysser midnatt og føres på startdatoen. «–» betyr manglende data.</p></section></main>
 <script>
 const HIST="https://randaberg-vaerhistorikk.vercel.app/api/historikk",FUTURE="/api/forecast";
 let history=null,forecast=null,station="both",range=24,day=0,variable="precipitation",historyRange=24,historyMode="rolling",forecastRainMode="rolling",rainScenario="expected";
@@ -124,6 +127,80 @@ function forecastRainBars(rows){const svg=$("forecastGraph");svg.replaceChildren
 function renderForecast(){if(!forecast)return;const dailyRain=variable==="precipitation"&&range>24;$("rainScenarioButtons").style.display=variable==="precipitation"?"block":"none";$("forecastRainModeButtons").style.display=dailyRain?"block":"none";$("dayButtons").style.display=range===72&&!dailyRain?"block":"none";if(range===72)$("dayButtons").innerHTML=[0,1,2].map(i=>'<button class="'+(day===i?"active":"")+'" onclick="day='+i+';renderForecast()">Døgn '+(i+1)+'</button>').join("");const rows=dailyRain?hours():visibleHours(),nums=k=>rows.map(r=>r[k]).filter(v=>typeof v==="number"),rain=nums(rainScenario==="upper"?"precipitationMax":"precipitation"),wind=nums("wind"),gust=nums("gust"),temp=nums("temperature"),bins=dailyRain?forecastRainBins(rows):[],rainSum=dailyRain?bins.filter(b=>typeof b.mm==="number").reduce((a,b)=>a+b.mm,0):rain.reduce((a,b)=>a+b,0),rainComplete=dailyRain?bins.length>0&&bins.every(b=>typeof b.mm==="number"):rain.length===rows.length&&rows.length>0;$("forecastCards").innerHTML=[[(rainScenario==="upper"?"Nedbør – øvre":"Nedbør"),(dailyRain?bins.some(b=>typeof b.mm==="number"):rain.length)?fmt(rainSum)+" mm"+(rainComplete?"":" (ufullstendig)"):"–"],["Maks vind",wind.length?fmt(Math.max(...wind))+" m/s":"–"],["Maks kast",gust.length?fmt(Math.max(...gust))+" m/s":"–"],["Temperatur",temp.length?fmt(Math.min(...temp))+" til "+fmt(Math.max(...temp))+" °C":"–"]].map(([n,v])=>'<div class="card"><small>'+n+'</small><strong>'+v+'</strong></div>').join("");if(dailyRain){forecastRainBars(rows);$("forecastNote").textContent=(rainScenario==="upper"?"Øvre prognosegrense. ":"Forventet nedbør. ")+"Nedbør per "+(forecastRainMode==="rolling"?"rullende 24-timersperiode":"kalenderdøgn")+". 1- og 6-timersintervaller kombineres uten overlapp. Manglende dekning vises blankt, ikke som 0 mm. Kalenderdøgn med 6-timersintervaller over midnatt merkes ≈: hele intervallet føres på startdatoen, siden eksakt timefordeling er ukjent. Første og siste dato kan være delvis dekket."}else{const unit=variable==="temperature"?"°C":variable==="wind"?"m/s":"mm",series=[{name:variable==="temperature"?"Temperatur":variable==="wind"?"Vind":(rainScenario==="upper"?"Øvre prognose":"Forventet nedbør"),color:"#1679b4",values:rows.map(r=>{const key=variable==="precipitation"&&rainScenario==="upper"?"precipitationMax":variable;return typeof r[key]==="number"?r[key]:null})}];if(variable==="wind")series.push({name:"Vindkast",color:"#b15b9b",values:rows.map(r=>typeof r.gust==="number"?r.gust:null)});forecastTimeGraph(rows,series,unit);$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. Tidsaksen følger faktiske klokkeslett; prikker viser tilgjengelige prognoseverdier. Manglende verdier vises ikke som null."}$("tableArea").innerHTML='<table><thead><tr><th>Tid</th><th>Regn 1t</th><th>Øvre 1t</th><th>Regn 6t</th><th>Øvre 6t</th><th>Vind</th><th>Kast</th><th>Temp.</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+time(r.time)+'</td><td>'+fmt(r.precipitation)+'</td><td>'+fmt(r.precipitationMax)+'</td><td>'+fmt(r.precipitation6h)+'</td><td>'+fmt(r.precipitation6hMax)+'</td><td>'+fmt(r.wind)+'</td><td>'+fmt(r.gust)+'</td><td>'+fmt(r.temperature)+'</td></tr>').join("")+'</tbody></table>';renderAlerts()}
 function renderAlerts(){const items=hours().filter(r=>(typeof r.gust==="number"&&r.gust>=17)||(typeof r.precipitation==="number"&&r.precipitation>=4));$("alerts").innerHTML=items.length?items.slice(0,12).map(r=>{const severe=(r.gust??0)>=25||(r.precipitation??0)>=8,message=[];if((r.gust??0)>=17)message.push("Vindkast "+fmt(r.gust)+" m/s");if((r.precipitation??0)>=4)message.push("Regn "+fmt(r.precipitation)+" mm");return '<p style="border-left:4px solid '+(severe?"#cf3636":"#e2aa25")+';padding:9px;background:#f7f9fb"><b>'+time(r.time)+'</b> – '+message.join(", ")+'</p>'}).join(""):"Ingen lokale terskler overskredet i valgt periode."}
 function toggleTable(){$("tableArea").hidden=!$("tableArea").hidden}
-async function loadAll(){$("status").textContent="Henter historikk og prognose …";const results=await Promise.allSettled([fetch(HIST,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()}),fetch(FUTURE,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()})]),messages=[];if(results[0].status==="fulfilled"){history=results[0].value;renderHistory();messages.push("Historikk: OK")}else messages.push("Historikk: "+results[0].reason.message);if(results[1].status==="fulfilled"){forecast=results[1].value;renderForecast();messages.push("Prognose: OK")}else messages.push("Prognose: "+results[1].reason.message);$("status").textContent=messages.join(" | ")+" · "+new Date().toLocaleTimeString("nb-NO")}
+
+// For værtype brukes METs symbol_code, som ikke finnes i vår eksisterende
+// prognoseproxy. Et separat MET-oppslag forsøkes; hvis det feiler,
+// viser vi ingen oppdiktede sol-/skyikoner.
+let weatherSymbols=new Map();
+function symbolView(code){
+  if(!code)return ['🌡️','Værtype ikke tilgjengelig'];
+  const c=code.toLowerCase();
+  if(c.includes('thunder'))return ['⛈️','Tordenbyger'];
+  if(c.includes('snow'))return ['🌨️','Snø'];
+  if(c.includes('sleet'))return ['🌨️','Sludd'];
+  if(c.includes('rain')||c.includes('drizzle'))return ['🌧️','Regn eller byger'];
+  if(c.includes('fair'))return ['🌤️','Lettskyet'];
+  if(c.includes('partlycloudy'))return ['⛅','Delvis skyet'];
+  if(c.includes('cloudy'))return ['☁️','Skyet'];
+  if(c.includes('clearsky'))return ['☀️','Klart'];
+  if(c.includes('fog'))return ['🌫️','Tåke'];
+  return ['🌡️','Værtype ikke tilgjengelig'];
+}
+async function loadWeatherSymbols(){
+  try{
+    const url='https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=58.9834382&lon=5.5719462';
+    const r=await fetch(url,{cache:'no-store'});
+    if(!r.ok)throw Error('MET HTTP '+r.status);
+    const data=await r.json();
+    weatherSymbols=new Map((data.properties?.timeseries||[]).map(p=>[
+      p.time,p.data?.next_1_hours?.summary?.symbol_code||p.data?.next_6_hours?.summary?.symbol_code||null
+    ]));
+  }catch(e){weatherSymbols=new Map();}
+  renderSimpleForecast();
+}
+function renderSimpleForecast(){
+  if(!forecast?.hours)return;
+  const all=forecast.hours.filter(r=>Number.isFinite(Date.parse(r.time))).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
+  const today=osloDay(new Date().toISOString());
+  const keys=[];
+  for(let i=1;i<=9;i++)keys.push(osloDay(new Date(Date.parse(today+'T12:00:00Z')+i*86400000).toISOString()));
+  // Gjenbruk nøyaktig samme beregning som nedbørsgrafen.
+  const saved=[range,forecastRainMode,rainScenario];
+  range=216;forecastRainMode='calendar';rainScenario='expected';
+  const expected=forecastRainBins(all);
+  rainScenario='upper';const upper=forecastRainBins(all);
+  [range,forecastRainMode,rainScenario]=saved;
+  const byKey=arr=>new Map(arr.filter(x=>x.key).map(x=>[x.key,x]));
+  const exp=byKey(expected),up=byKey(upper);
+  let wet=0,dry=0,validDays=0;
+  const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const dayFormat=new Intl.DateTimeFormat('nb-NO',{timeZone:'Europe/Oslo',weekday:'short',day:'numeric',month:'short'});
+  const rows=keys.map(key=>{
+    const data=all.filter(r=>osloDay(r.time)===key);
+    const numeric=k=>data.map(r=>r[k]).filter(v=>typeof v==='number'&&Number.isFinite(v));
+    const temps=numeric('temperature'),winds=numeric('wind'),gusts=numeric('gust');
+    const low=temps.length?Math.min(...temps):null,high=temps.length?Math.max(...temps):null;
+    const e=exp.get(key),u=up.get(key);
+    const rain=(e&&typeof e.mm==='number'&&u&&typeof u.mm==='number')?
+      (e.approx||u.approx?'≈':'')+fmt(e.mm)+'–'+fmt(u.mm)+' mm':'–';
+    if(e&&typeof e.mm==='number'&&u&&typeof u.mm==='number'){validDays++;if(u.mm>0)wet++;else dry++;}
+    const codes=data.map(r=>weatherSymbols.get(r.time)).filter(Boolean);
+    // Foretrekk dagtidsvær, ikke symbol for natten.
+    const daytime=data.filter(r=>{const h=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',hour:'2-digit',hourCycle:'h23'}).format(new Date(r.time)));return h>=9&&h<=16;});
+    const dayCodes=daytime.map(r=>weatherSymbols.get(r.time)).filter(Boolean);
+    const icon=symbolView(dayCodes[Math.floor(dayCodes.length/2)]||codes[Math.floor(codes.length/2)]);
+    const wind=winds.length?fmt(Math.max(...winds))+(gusts.length?' ('+fmt(Math.max(...gusts))+')':'')+' m/s':'–';
+    return '<tr><td>'+esc(dayFormat.format(new Date(key+'T12:00:00Z')))+'</td><td><span class="simple-weather">'+icon[0]+'</span>'+esc(icon[1])+'</td><td>'+(temps.length?fmt(high)+'° / '+fmt(low)+'°C':'–')+'</td><td>'+rain+'</td><td>'+wind+'</td></tr>';
+  });
+  $('simpleRows').innerHTML=rows.join('');
+  $('simpleSummary').textContent=validDays===0?'Prognosedata for nedbør er ikke komplette nok til en sikker oppsummering.':
+    (wet===0?'Prognosen viser lite eller ingen nedbør i dagene med komplette data.':
+     wet<=2?'Stort sett opphold, men mulighet for noe nedbør enkelte dager.':
+     'Det er mulighet for nedbør flere dager i perioden.')+
+    (validDays<9?' Noen døgn har manglende eller ufullstendige nedbørsdata.':'')+
+    ' Tabellen bygger på MET-prognosen for Vistnesvågen.';
+}
+
+async function loadAll(){$("status").textContent="Henter historikk og prognose …";const results=await Promise.allSettled([fetch(HIST,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()}),fetch(FUTURE,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()})]),messages=[];if(results[0].status==="fulfilled"){history=results[0].value;renderHistory();messages.push("Historikk: OK")}else messages.push("Historikk: "+results[0].reason.message);if(results[1].status==="fulfilled"){forecast=results[1].value;renderForecast();renderSimpleForecast();loadWeatherSymbols();messages.push("Prognose: OK")}else messages.push("Prognose: "+results[1].reason.message);$("status").textContent=messages.join(" | ")+" · "+new Date().toLocaleTimeString("nb-NO")}
 loadAll();
 </script></body></html>
