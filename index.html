@@ -1,478 +1,111 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vistnesvågen – Værdashboard</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#eef3f7;color:#203346;font-family:Arial,sans-serif}
-header{background:#163954;color:white;padding:24px}
-h1{margin:0 0 8px;font-size:27px}
-main{max-width:1100px;margin:auto;padding:15px}
-section{background:white;border-radius:12px;padding:18px;margin-bottom:15px}
-h2{font-size:21px;margin-top:0}
-button{padding:10px 14px;margin:4px;border:0;border-radius:7px;background:#e7edf3;color:#203346;font-size:15px}
-button.active{background:#176b9b;color:white}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px}
-.card{background:#edf4f9;border-radius:9px;padding:13px}
-.card strong{display:block;font-size:24px;margin-top:7px}
-small,.muted{color:#647588}
-.graph{overflow-x:auto;border:1px solid #e0e7ed;border-radius:9px;margin-top:14px}
-svg{width:100%;min-width:680px;display:block}
-#forecastGraph{min-width:680px}
-#detail,#historyDetail{background:#edf4fa;padding:12px;border-radius:8px;margin-top:10px}
-table{width:100%;border-collapse:collapse;min-width:560px}
-td,th{padding:9px;border-bottom:1px solid #e1e8ee;text-align:left}
-th{background:#edf3f8}
-.scroll{overflow:auto}
-.error{color:#a52525}
-#historyGraph{min-width:600px}
-#historyNote{margin-top:9px;font-size:13px;line-height:1.5}
-#historyLegend{margin-top:9px}
-</style>
-</head>
-<body>
-<header>
-<h1>Vistnesvågen – Vær og lokale varsler</h1>
-<div>Randaberg · 58.9834382 N, 5.5719462 Ø</div>
-</header>
-<main>
-<section>
-<h2>Datakilder</h2>
-<p id="status">Henter værdata …</p>
-<button onclick="loadAll()">Oppdater målinger</button>
-</section>
-
-<section>
-<h2>Historisk nedbør – Frost</h2>
-<p>Faktiske målinger fra lokale værstasjoner.</p>
-<div id="stationButtons">
-<button class="active" onclick="chooseStation('both',this)">Begge</button>
-<button onclick="chooseStation('tananger',this)">Tananger</button>
-<button onclick="chooseStation('valand',this)">Våland</button>
-</div>
-<div class="cards" id="historyCards"></div>
-<h3 id="historyTitle">Timesnedbør siste 24 timer</h3>
-<div id="historyRangeButtons">
-<button class="active" onclick="chooseHistoryRange(24,this)">24 timer</button>
-<button onclick="chooseHistoryRange(72,this)">72 timer</button>
-<button onclick="chooseHistoryRange(168,this)">168 timer</button>
-</div>
-<div id="historyModeButtons">
-<button class="active" onclick="chooseHistoryMode('rolling',this)">Rullende døgn</button>
-<button onclick="chooseHistoryMode('calendar',this)">Kalenderdøgn</button>
-</div>
-<div id="historyLegend"></div>
-<div class="graph">
-<svg id="historyGraph" viewBox="0 0 960 310" role="img" aria-label="Graf over historisk nedbør"></svg>
-</div>
-<div id="historyDetail">Trykk på grafen for detaljer.</div>
-<p id="historyNote" class="muted"></p>
-</section>
-
-<section>
-<h2>Fremtidig værvarsel – MET Norway</h2>
-<div id="rangeButtons">
-<button class="active" onclick="chooseRange(24,this)">24 timer</button>
-<button onclick="chooseRange(72,this)">72 timer</button>
-<button onclick="chooseRange(120,this)">5 dager</button>
-<button onclick="chooseRange(216,this)">9 dager</button>
-</div>
-<div id="dayButtons" style="display:none"></div>
-<div class="cards" id="forecastCards"></div>
-<h3>Værgraf</h3>
-<div id="variableButtons">
-<button class="active" onclick="chooseVariable('precipitation',this)">Regn</button>
-<button onclick="chooseVariable('wind',this)">Vind</button>
-<button onclick="chooseVariable('temperature',this)">Temperatur</button>
-</div>
-<div id="forecastRainModeButtons" style="display:none;margin-top:8px">
-<button class="active" onclick="chooseForecastRainMode('rolling',this)">Rullende døgn</button>
-<button onclick="chooseForecastRainMode('calendar',this)">Kalenderdøgn</button>
-</div>
-<div class="graph">
-<svg id="forecastGraph" viewBox="0 0 960 310"></svg>
-</div>
-<div id="detail">Trykk på grafen for detaljer.</div>
-<p id="forecastNote" class="muted"></p>
-<button onclick="toggleTable()">Vis/skjul prognosetabell</button>
-<div id="tableArea" class="scroll" hidden></div>
-</section>
-
-<section>
-<h2>Lokale varselkommentarer</h2>
-<div id="alerts">Venter på prognosen …</div>
-<p class="muted">Dette er lokale indikatorer, ikke offisielle farevarsler. Flomfare må også vurderes mot frost, snøsmelting og avrenning.</p>
-</section>
-</main>
-
+*{box-sizing:border-box}body{margin:0;background:#eef3f7;color:#203346;font-family:Arial,sans-serif}header{background:#163954;color:white;padding:24px}h1{margin:0 0 8px;font-size:27px}main{max-width:1100px;margin:auto;padding:15px}section{background:white;border-radius:12px;padding:18px;margin-bottom:15px}h2{font-size:21px;margin-top:0}button{padding:10px 14px;margin:4px;border:0;border-radius:7px;background:#e7edf3;color:#203346;font-size:15px}button.active{background:#176b9b;color:white}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px}.card{background:#edf4f9;border-radius:9px;padding:13px}.card strong{display:block;font-size:24px;margin-top:7px}small,.muted{color:#647588}.graph{overflow-x:auto;border:1px solid #e0e7ed;border-radius:9px;margin-top:14px}svg{width:100%;min-width:680px;display:block}#detail,#historyDetail{background:#edf4fa;padding:12px;border-radius:8px;margin-top:10px}table{width:100%;border-collapse:collapse;min-width:560px}td,th{padding:9px;border-bottom:1px solid #e1e8ee;text-align:left}th{background:#edf3f8}.scroll{overflow:auto}#historyGraph{min-width:600px}#historyNote{margin-top:9px;font-size:13px;line-height:1.5}#historyLegend{margin-top:9px}
+</style></head>
+<body><header><h1>Vistnesvågen – Vær og lokale varsler</h1><div>Randaberg · 58.9834382 N, 5.5719462 Ø</div></header><main>
+<section><h2>Datakilder</h2><p id="status">Henter værdata …</p><button onclick="loadAll()">Oppdater målinger</button></section>
+<section><h2>Historisk nedbør – Frost</h2><p>Faktiske målinger fra lokale værstasjoner.</p><div id="stationButtons"><button class="active" onclick="chooseStation('both',this)">Begge</button><button onclick="chooseStation('tananger',this)">Tananger</button><button onclick="chooseStation('valand',this)">Våland</button></div><div class="cards" id="historyCards"></div><h3 id="historyTitle">Timesnedbør siste 24 timer</h3><div id="historyRangeButtons"><button class="active" onclick="chooseHistoryRange(24,this)">24 timer</button><button onclick="chooseHistoryRange(72,this)">72 timer</button><button onclick="chooseHistoryRange(168,this)">168 timer</button></div><div id="historyModeButtons"><button class="active" onclick="chooseHistoryMode('rolling',this)">Rullende døgn</button><button onclick="chooseHistoryMode('calendar',this)">Kalenderdøgn</button></div><div id="historyLegend"></div><div class="graph"><svg id="historyGraph" viewBox="0 0 960 310" aria-label="Graf over historisk nedbør"></svg></div><div id="historyDetail">Trykk på grafen for detaljer.</div><p id="historyNote" class="muted"></p></section>
+<section><h2>Fremtidig værvarsel – MET Norway</h2><div id="rangeButtons"><button class="active" onclick="chooseRange(24,this)">24 timer</button><button onclick="chooseRange(72,this)">72 timer</button><button onclick="chooseRange(120,this)">5 dager</button><button onclick="chooseRange(216,this)">9 dager</button></div><div id="dayButtons" style="display:none"></div><div class="cards" id="forecastCards"></div><h3>Værgraf</h3><div id="variableButtons"><button class="active" onclick="chooseVariable('precipitation',this)">Regn</button><button onclick="chooseVariable('wind',this)">Vind</button><button onclick="chooseVariable('temperature',this)">Temperatur</button></div><div id="forecastRainModeButtons" style="display:none;margin-top:8px"><button class="active" onclick="chooseForecastRainMode('rolling',this)">Rullende døgn</button><button onclick="chooseForecastRainMode('calendar',this)">Kalenderdøgn</button></div><div class="graph"><svg id="forecastGraph" viewBox="0 0 960 310"></svg></div><div id="detail">Trykk på grafen for detaljer.</div><p id="forecastNote" class="muted"></p><button onclick="toggleTable()">Vis/skjul prognosetabell</button><div id="tableArea" class="scroll" hidden></div></section>
+<section><h2>Lokale varselkommentarer</h2><div id="alerts">Venter på prognosen …</div><p class="muted">Dette er lokale indikatorer, ikke offisielle farevarsler. Flomfare må også vurderes mot frost, snøsmelting og avrenning.</p></section></main>
 <script>
-const HIST="https://randaberg-vaerhistorikk.vercel.app/api/historikk";
-const FUTURE="/api/forecast";
-let history=null,forecast=null,station="both",range=24,day=0,variable="precipitation";
-let historyRange=24,historyMode="rolling",forecastRainMode="rolling";
-const $=id=>document.getElementById(id);
-const fmt=n=>typeof n==="number"?n.toLocaleString("nb-NO",{maximumFractionDigits:1}):"–";
+const HIST="https://randaberg-vaerhistorikk.vercel.app/api/historikk",FUTURE="/api/forecast";
+let history=null,forecast=null,station="both",range=24,day=0,variable="precipitation",historyRange=24,historyMode="rolling",forecastRainMode="rolling";
+const $=id=>document.getElementById(id),fmt=n=>typeof n==="number"&&Number.isFinite(n)?n.toLocaleString("nb-NO",{maximumFractionDigits:1}):"–";
 const time=t=>new Intl.DateTimeFormat("nb-NO",{timeZone:"Europe/Oslo",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(t));
 const color={SN44552:"#1679b4",SN44640:"#a54ca4"};
-
-function activate(parent,button){
-document.querySelectorAll("#"+parent+" button").forEach(b=>b.classList.remove("active"));
-button.classList.add("active");
-}
+function activate(id,b){document.querySelectorAll("#"+id+" button").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
 function chooseStation(v,b){station=v;activate("stationButtons",b);renderHistory()}
 function chooseHistoryRange(v,b){historyRange=v;activate("historyRangeButtons",b);renderHistory()}
 function chooseHistoryMode(v,b){historyMode=v;activate("historyModeButtons",b);renderHistory()}
 function chooseRange(v,b){range=v;day=0;activate("rangeButtons",b);renderForecast()}
 function chooseVariable(v,b){variable=v;activate("variableButtons",b);renderForecast()}
 function chooseForecastRainMode(v,b){forecastRainMode=v;activate("forecastRainModeButtons",b);renderForecast()}
-function stations(){
-return (history?.stations||[]).filter(s=>
-(s.id==="SN44552"&&(station==="both"||station==="tananger"))||
-(s.id==="SN44640"&&(station==="both"||station==="valand")));
-}
-function svgNode(tag,attrs,text){
-const n=document.createElementNS("http://www.w3.org/2000/svg",tag);
-Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));
-if(text!==undefined)n.textContent=text;
-return n;
-}
-function graph(id,series,labels,unit,detailId){
-const svg=$(id);svg.replaceChildren();
-const values=series.flatMap(s=>s.values.filter(v=>typeof v==="number"));
-if(!values.length){svg.append(svgNode("text",{x:25,y:40},"Ingen data"));return}
-const N=Math.max(...series.map(s=>s.values.length));
-const min=Math.min(0,...values),max=Math.max(1,...values);
-const low=min-(max-min)*.08,high=max+(max-min)*.12;
-const x=i=>52+i*875/Math.max(1,N-1);
-const y=v=>20+(high-v)*230/(high-low);
-for(let j=0;j<=4;j++){
-const val=high-(high-low)*j/4,yy=y(val);
-svg.append(svgNode("line",{x1:52,x2:927,y1:yy,y2:yy,stroke:"#dfe7ed"}));
-svg.append(svgNode("text",{x:45,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(val)));
-}
-svg.append(svgNode("text",{x:8,y:12,fill:"#647588","font-size":12},unit));
-for(let i=0;i<N;i+=Math.max(1,Math.ceil(N/7))){
-if(labels[i])svg.append(svgNode("text",{x:x(i),y:289,"text-anchor":"middle",fill:"#647588","font-size":11},time(labels[i])));
-}
-series.forEach(s=>{
-let points=[];
-function flush(){
-if(points.length>1)svg.append(svgNode("polyline",{points:points.join(" "),fill:"none",stroke:s.color,"stroke-width":2.5}));
-points=[];
-}
-s.values.forEach((v,i)=>{
-if(typeof v==="number")points.push(x(i)+","+y(v));else flush();
-});
-flush();
-});
-for(let i=0;i<N;i++){
-const hit=svgNode("rect",{x:x(i)-7,y:18,width:14,height:237,fill:"transparent"});
-hit.addEventListener("click",()=>{
-$(detailId).textContent=time(labels[i])+" — "+series.map(s=>s.name+": "+(typeof s.values[i]==="number"?fmt(s.values[i])+" "+unit:"Mangler")).join(" | ");
-});
-svg.append(hit);
-}
-}
-
-// Frost-observasjoner er tidsstemplet i UTC. Lokal dato brukes bare for kalenderdøgn.
+function stations(){return (history?.stations||[]).filter(s=>(s.id==="SN44552"&&(station==="both"||station==="tananger"))||(s.id==="SN44640"&&(station==="both"||station==="valand")))}
+function svgNode(tag,attrs,txt){const n=document.createElementNS("http://www.w3.org/2000/svg",tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(txt!==undefined)n.textContent=txt;return n}
 const osloDateFormatter=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"});
-const osloDay=t=>{
-const parts=osloDateFormatter.formatToParts(new Date(t));
-const get=k=>parts.find(p=>p.type===k).value;
-return get("year")+"-"+get("month")+"-"+get("day");
-};
-const dateLabel=key=>new Intl.DateTimeFormat("nb-NO",{day:"numeric",month:"short"}).format(new Date(key+"T12:00:00Z"));
-function historyGroups(ss){
-const period=historyRange+"h";
-const base=ss[0].periods?.[period]?.hourly||[];
-const stamps=base.map(p=>p.time);
-const stationMaps=ss.map(s=>new Map((s.periods?.[period]?.hourly||[]).map(p=>[p.time,p.mm])));
-if(historyRange===24){
-return {labels:stamps.map(time),groups:stamps.map((t,i)=>({label:time(t),indices:[i],expected:1})),stationMaps,stamps};
-}
-if(historyMode==="rolling"){
-const count=historyRange/24;
-const groups=[];
-for(let d=0;d<count;d++){
-const start=d*24;
-const indices=Array.from({length:24},(_,i)=>start+i).filter(i=>i<stamps.length);
-const first=stamps[indices[0]],last=stamps[indices[indices.length-1]];
-const label="Døgn "+(count-d);
-groups.push({label,indices,expected:24,description:first&&last?time(first)+" – "+time(last):label});
-}
-return {groups,stationMaps,stamps};
-}
-// De siste 3/7 lokale kalenderdatoene. Nåværende dato kan være ufullstendig.
-const unique=[...new Set(stamps.map(osloDay))];
-const keys=unique.slice(-historyRange/24);
-const groups=keys.map(key=>({
-label:dateLabel(key),
-indices:stamps.map((t,i)=>osloDay(t)===key?i:-1).filter(i=>i>=0),
-expected:null,
-description:dateLabel(key)
-}));
-return {groups,stationMaps,stamps};
-}
-function historyBarGraph(ss,groupData){
-const svg=$("historyGraph");svg.replaceChildren();
-const {groups,stationMaps,stamps}=groupData;
-if(!groups.length){svg.append(svgNode("text",{x:30,y:40},"Ingen data"));return}
-const series=ss.map((s,k)=>groups.map(g=>{
-const values=g.indices.map(i=>stationMaps[k].get(stamps[i]));
-const missing=values.filter(v=>typeof v!=="number").length;
-const sum=values.reduce((a,v)=>a+(typeof v==="number"?v:0),0);
-return {sum,missing,observed:values.length-missing};
-}));
-const max=Math.max(1,...series.flat().map(p=>p.sum));
-const ceiling=max*1.22;
-const y=v=>248-v*215/ceiling;
-for(let j=0;j<=4;j++){
-const value=ceiling*j/4,yy=y(value);
-svg.append(svgNode("line",{x1:55,x2:930,y1:yy,y2:yy,stroke:"#dfe7ed"}));
-svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(value)));
-}
-svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm"));
-const groupWidth=860/groups.length;
-const barWidth=Math.min(65,groupWidth/(ss.length+1)*.7);
-groups.forEach((g,i)=>{
-const cx=75+(i+.5)*groupWidth;
-ss.forEach((s,k)=>{
-const p=series[k][i];
-const x=cx+(k-(ss.length-1)/2)*barWidth*1.2-barWidth/2;
-const height=Math.max(0,248-y(p.sum));
-const rect=svgNode("rect",{x,y:y(p.sum),width:barWidth,height:Math.max(1,height),rx:3,fill:color[s.id]||"#1679b4",opacity:p.missing?"0.65":"0.9"});
-const detail=()=>{
-const incomplete=p.missing?" · "+p.missing+" manglende timer":"";
-const partial=historyMode==="calendar"?" · "+p.observed+" observerte timer":"";
-$("historyDetail").textContent=g.description+" — "+s.name+": "+fmt(p.sum)+" mm"+partial+incomplete+(historyMode==="calendar"?" (kalenderdøgn kan være delvis dekket)":"");
-};
-rect.addEventListener("click",detail);
-svg.append(rect);
-const val=svgNode("text",{x:x+barWidth/2,y:Math.max(24,y(p.sum)-7),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},fmt(p.sum)+(p.missing?"*":""));
-val.addEventListener("click",detail);svg.append(val);
-});
-svg.append(svgNode("text",{x:cx,y:280,"text-anchor":"middle",fill:"#647588","font-size":groups.length>3?12:14},g.label));
-});
-}
-function renderHistory(){
-const ss=stations();if(!ss.length)return;
-$("historyCards").innerHTML=ss.flatMap(s=>[24,72,168].map(h=>{
-const p=s.periods[h+"h"];
-return '<div class="card"><small>'+s.name+' · '+h+' timer</small><strong>'+fmt(p?.mm)+' mm</strong><small>'+(p?.complete?"Komplett":(p?.missingHours??"–")+" timer mangler")+'</small></div>';
-})).join("");
-$("historyLegend").innerHTML=ss.map(s=>'<span style="color:'+color[s.id]+'">● '+s.name+'</span> &nbsp; ').join("");
-$("historyDetail").textContent="Trykk på grafen for detaljer.";
-const data=historyGroups(ss);
-if(historyRange===24){
-$("historyTitle").textContent="Timesnedbør siste 24 timer";
-const labels=data.stamps;
-const series=ss.map((s,k)=>({name:s.name,color:color[s.id],values:labels.map(t=>data.stationMaps[k].get(t)??null)}));
-graph("historyGraph",series,labels,"mm/time","historyDetail");
-$("historyNote").textContent="24 timer vises som timesnedbør. Valget mellom rullende døgn og kalenderdøgn gjelder søylevisningene for 72 og 168 timer.";
-return;
-}
-$("historyTitle").textContent="Nedbør fordelt på "+(historyRange/24)+" "+(historyMode==="rolling"?"rullende døgn":"kalenderdøgn");
-historyBarGraph(ss,data);
-$("historyNote").textContent=historyMode==="rolling"
-?"Hver søyle viser 24 sammenhengende timer. Døgn 1 er eldste periode, siste søyle er nyeste. * markerer manglende målinger; summen er da ufullstendig."
-:"Søylene viser de siste "+(historyRange/24)+" kalenderdatoene (norsk tid). Dagens dato er ikke et ferdig døgn, og eldste dato kan mangle timer fordi datakilden bare leverer de siste "+historyRange+" timene. Trykk på en søyle for antall observerte timer. * markerer manglende målinger innenfor tilgjengelig periode.";
-}
-function hours(){
-if(!forecast?.hours)return[];
-const now=Date.now();
-return forecast.hours.filter(h=>{
-const t=Date.parse(h.time);
-return Number.isFinite(t)&&t>=now-3600000&&t<now+range*3600000;
-}).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
-}
-function visibleHours(){
-const all=hours();
-if(range!==72)return all;
-return all.filter(h=>{
-const diff=(Date.parse(h.time)-Date.now())/3600000;
-return diff>=day*24-1&&diff<(day+1)*24;
-});
-}
-// Prognosegraf: X-koordinatene følger faktisk klokkeslett, ikke antall datapunkter.
-function forecastTimeGraph(rows,series,unit){
-const svg=$("forecastGraph");svg.replaceChildren();
-const times=rows.map(r=>Date.parse(r.time));
-const valid=times.filter(Number.isFinite);
-const values=series.flatMap(s=>s.values.filter(v=>typeof v==="number"));
-if(!valid.length||!values.length){svg.append(svgNode("text",{x:28,y:45},"Ingen tilgjengelige prognosedata"));return}
-const t0=Math.min(...valid),t1=Math.max(t0+3600000,...valid);
-const low0=Math.min(0,...values),high0=Math.max(1,...values);
-const pad=Math.max(.5,(high0-low0)*.13),lo=low0-pad,hi=high0+pad;
-const x=t=>55+(t-t0)*870/(t1-t0);
-const y=v=>248-(v-lo)*215/(hi-lo);
-for(let j=0;j<=4;j++){
-const v=lo+(hi-lo)*j/4,yy=y(v);
-svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));
-svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)));
-}
-svg.append(svgNode("text",{x:9,y:14,fill:"#647588","font-size":12},unit));
-// Marker lokale midnatt ved å gå gjennom timeverdier; riktig også ved sommertid.
-let prev="",dayMarks=[];
-for(let t=Math.ceil(t0/3600000)*3600000;t<=t1;t+=3600000){
-const key=osloDay(new Date(t).toISOString());
-if(prev&&key!==prev)dayMarks.push({t,key});
-prev=key;
-}
-const step=Math.max(1,Math.ceil(dayMarks.length/8));
-dayMarks.forEach((d,i)=>{
-const xx=x(d.t);
-svg.append(svgNode("line",{x1:xx,x2:xx,y1:26,y2:250,stroke:"#cad7e2","stroke-dasharray":"3 5"}));
-if(i%step===0)svg.append(svgNode("text",{x:xx,y:287,"text-anchor":"middle",fill:"#647588","font-size":12},dateLabel(d.key)));
-});
-if(!dayMarks.length){
-for(let i=0;i<valid.length;i+=Math.max(1,Math.ceil(valid.length/5))){
-svg.append(svgNode("text",{x:x(valid[i]),y:287,"text-anchor":"middle",fill:"#647588","font-size":11},time(new Date(valid[i]).toISOString())));
-}}
-series.forEach(s=>{
-let segment=[];
-function flush(){
-if(segment.length>1)svg.append(svgNode("polyline",{points:segment.join(" "),fill:"none",stroke:s.color,"stroke-width":2.5,"stroke-linejoin":"round"}));
-segment=[];
-}
-s.values.forEach((v,i)=>{
-if(typeof v!=="number"||!Number.isFinite(times[i])){flush();return}
-segment.push(x(times[i])+","+y(v));
-});flush();
-// Små markører viser nøyaktig hvor datakilden har verdier.
-s.values.forEach((v,i)=>{
-if(typeof v!=="number"||!Number.isFinite(times[i]))return;
-const c=svgNode("circle",{cx:x(times[i]),cy:y(v),r:2.5,fill:s.color});
-c.addEventListener("click",()=>{$("detail").textContent=time(rows[i].time)+" — "+s.name+": "+fmt(v)+" "+unit});
-svg.append(c);
-});
-});
-// Gjennomsiktige treffområder over hele diagrammet.
-rows.forEach((r,i)=>{
-if(!Number.isFinite(times[i]))return;
-const hit=svgNode("rect",{x:x(times[i])-4,y:25,width:8,height:224,fill:"transparent"});
-hit.addEventListener("click",()=>{$("detail").textContent=time(r.time)+" — "+series.map(s=>s.name+": "+(typeof s.values[i]==="number"?fmt(s.values[i])+" "+unit:"Mangler")).join(" | ")});
-svg.append(hit);
-});
-}
-
+function osloDay(t){const p=osloDateFormatter.formatToParts(new Date(t));const get=k=>p.find(x=>x.type===k).value;return get("year")+"-"+get("month")+"-"+get("day")}
+const dateLabel=k=>new Intl.DateTimeFormat("nb-NO",{day:"numeric",month:"short"}).format(new Date(k+"T12:00:00Z"));
+function graph(id,series,labels,unit,detailId){const svg=$(id);svg.replaceChildren();const values=series.flatMap(s=>s.values.filter(v=>typeof v==="number"));if(!values.length){svg.append(svgNode("text",{x:25,y:40},"Ingen data"));return}const N=Math.max(...series.map(s=>s.values.length)),min=Math.min(0,...values),max=Math.max(1,...values),low=min-(max-min)*.08,high=max+(max-min)*.12,x=i=>52+i*875/Math.max(1,N-1),y=v=>20+(high-v)*230/(high-low);for(let j=0;j<=4;j++){const val=high-(high-low)*j/4,yy=y(val);svg.append(svgNode("line",{x1:52,x2:927,y1:yy,y2:yy,stroke:"#dfe7ed"}));svg.append(svgNode("text",{x:45,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(val)))}svg.append(svgNode("text",{x:8,y:12,fill:"#647588","font-size":12},unit));for(let i=0;i<N;i+=Math.max(1,Math.ceil(N/7)))if(labels[i])svg.append(svgNode("text",{x:x(i),y:289,"text-anchor":"middle",fill:"#647588","font-size":11},time(labels[i])));series.forEach(s=>{let pts=[];function flush(){if(pts.length>1)svg.append(svgNode("polyline",{points:pts.join(" "),fill:"none",stroke:s.color,"stroke-width":2.5}));pts=[]}s.values.forEach((v,i)=>{if(typeof v==="number")pts.push(x(i)+","+y(v));else flush()});flush()});for(let i=0;i<N;i++){const hit=svgNode("rect",{x:x(i)-7,y:18,width:14,height:237,fill:"transparent"});hit.addEventListener("click",()=>{$(detailId).textContent=time(labels[i])+" — "+series.map(s=>s.name+": "+(typeof s.values[i]==="number"?fmt(s.values[i])+" "+unit:"Mangler")).join(" | ")});svg.append(hit)}}
+function historyGroups(ss){const period=historyRange+"h",base=ss[0].periods?.[period]?.hourly||[],stamps=base.map(p=>p.time),stationMaps=ss.map(s=>new Map((s.periods?.[period]?.hourly||[]).map(p=>[p.time,p.mm])));if(historyRange===24)return{stamps,stationMaps};if(historyMode==="rolling"){const groups=[];for(let d=0;d<historyRange/24;d++){const indices=Array.from({length:24},(_,i)=>d*24+i).filter(i=>i<stamps.length),first=stamps[indices[0]],last=stamps[indices[indices.length-1]];groups.push({label:"Døgn "+(historyRange/24-d),indices,description:first&&last?time(first)+" – "+time(last):""})}return{groups,stationMaps,stamps}}const keys=[...new Set(stamps.map(osloDay))].slice(-historyRange/24);return{groups:keys.map(k=>({label:dateLabel(k),indices:stamps.map((t,i)=>osloDay(t)===k?i:-1).filter(i=>i>=0),description:dateLabel(k)})),stationMaps,stamps}}
+function historyBarGraph(ss,data){const svg=$("historyGraph");svg.replaceChildren();const{groups,stationMaps,stamps}=data;if(!groups.length)return;const series=ss.map((s,k)=>groups.map(g=>{const vals=g.indices.map(i=>stationMaps[k].get(stamps[i])),missing=vals.filter(v=>typeof v!=="number").length;return{sum:vals.reduce((a,v)=>a+(typeof v==="number"?v:0),0),missing,observed:vals.length-missing}}));const max=Math.max(1,...series.flat().map(p=>p.sum)),ceiling=max*1.22,y=v=>248-v*215/ceiling;for(let j=0;j<=4;j++){const v=ceiling*j/4,yy=y(v);svg.append(svgNode("line",{x1:55,x2:930,y1:yy,y2:yy,stroke:"#dfe7ed"}));svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)))}svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm"));const gw=860/groups.length,bw=Math.min(65,gw/(ss.length+1)*.7);groups.forEach((g,i)=>{const cx=75+(i+.5)*gw;ss.forEach((s,k)=>{const p=series[k][i],x=cx+(k-(ss.length-1)/2)*bw*1.2-bw/2,top=y(p.sum);const detail=()=>{$("historyDetail").textContent=g.description+" — "+s.name+": "+fmt(p.sum)+" mm"+(historyMode==="calendar"?" · "+p.observed+" observerte timer":"")+(p.missing?" · "+p.missing+" manglende timer":"")};const bar=svgNode("rect",{x,y:top,width:bw,height:Math.max(1,248-top),rx:3,fill:color[s.id]||"#1679b4",opacity:p.missing?"0.65":"0.9"});bar.addEventListener("click",detail);svg.append(bar);const val=svgNode("text",{x:x+bw/2,y:Math.max(24,top-7),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},fmt(p.sum)+(p.missing?"*":""));val.addEventListener("click",detail);svg.append(val)});svg.append(svgNode("text",{x:cx,y:280,"text-anchor":"middle",fill:"#647588","font-size":groups.length>3?12:14},g.label))})}
+function renderHistory(){const ss=stations();if(!ss.length)return;$("historyCards").innerHTML=ss.flatMap(s=>[24,72,168].map(h=>{const p=s.periods[h+"h"];return '<div class="card"><small>'+s.name+' · '+h+' timer</small><strong>'+fmt(p?.mm)+' mm</strong><small>'+(p?.complete?"Komplett":(p?.missingHours??"–")+" timer mangler")+'</small></div>'})).join("");$("historyLegend").innerHTML=ss.map(s=>'<span style="color:'+color[s.id]+'">● '+s.name+'</span> &nbsp; ').join("");$("historyDetail").textContent="Trykk på grafen for detaljer.";const data=historyGroups(ss);if(historyRange===24){$("historyTitle").textContent="Timesnedbør siste 24 timer";graph("historyGraph",ss.map((s,k)=>({name:s.name,color:color[s.id],values:data.stamps.map(t=>data.stationMaps[k].get(t)??null)})),data.stamps,"mm/time","historyDetail");$("historyNote").textContent="24 timer vises som timesnedbør. Døgnvalg gjelder 72 og 168 timer.";return}$("historyTitle").textContent="Nedbør fordelt på "+historyRange/24+" "+(historyMode==="rolling"?"rullende døgn":"kalenderdøgn");historyBarGraph(ss,data);$("historyNote").textContent=historyMode==="rolling"?"Hver søyle viser 24 sammenhengende timer. * markerer manglende målinger.":"Søylene viser lokale kalenderdatoer. Første og siste dato kan være delvis dekket. * markerer manglende målinger."}
+function hours(){if(!forecast?.hours)return[];const now=Date.now();return forecast.hours.filter(h=>{const t=Date.parse(h.time);return Number.isFinite(t)&&t>=now-3600000&&t<now+range*3600000}).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time))}
+function visibleHours(){const all=hours();if(range!==72)return all;return all.filter(h=>{const diff=(Date.parse(h.time)-Date.now())/3600000;return diff>=day*24-1&&diff<(day+1)*24})}
+function forecastTimeGraph(rows,series,unit){const svg=$("forecastGraph");svg.replaceChildren();const times=rows.map(r=>Date.parse(r.time)),valid=times.filter(Number.isFinite),values=series.flatMap(s=>s.values.filter(v=>typeof v==="number"));if(!valid.length||!values.length){svg.append(svgNode("text",{x:28,y:45},"Ingen tilgjengelige prognosedata"));return}const t0=Math.min(...valid),t1=Math.max(t0+3600000,...valid),low0=Math.min(0,...values),high0=Math.max(1,...values),pad=Math.max(.5,(high0-low0)*.13),lo=low0-pad,hi=high0+pad,x=t=>55+(t-t0)*870/(t1-t0),y=v=>248-(v-lo)*215/(hi-lo);for(let j=0;j<=4;j++){const v=lo+(hi-lo)*j/4,yy=y(v);svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)))}svg.append(svgNode("text",{x:9,y:14,fill:"#647588","font-size":12},unit));let prev="",marks=[];for(let t=Math.ceil(t0/3600000)*3600000;t<=t1;t+=3600000){const key=osloDay(new Date(t).toISOString());if(prev&&key!==prev)marks.push({t,key});prev=key}const step=Math.max(1,Math.ceil(marks.length/8));marks.forEach((d,i)=>{const xx=x(d.t);svg.append(svgNode("line",{x1:xx,x2:xx,y1:26,y2:250,stroke:"#cad7e2","stroke-dasharray":"3 5"}));if(i%step===0)svg.append(svgNode("text",{x:xx,y:287,"text-anchor":"middle",fill:"#647588","font-size":12},dateLabel(d.key)))});if(!marks.length)for(let i=0;i<valid.length;i+=Math.max(1,Math.ceil(valid.length/5)))svg.append(svgNode("text",{x:x(valid[i]),y:287,"text-anchor":"middle",fill:"#647588","font-size":11},time(new Date(valid[i]).toISOString())));series.forEach(s=>{let segment=[];function flush(){if(segment.length>1)svg.append(svgNode("polyline",{points:segment.join(" "),fill:"none",stroke:s.color,"stroke-width":2.5,"stroke-linejoin":"round"}));segment=[]}s.values.forEach((v,i)=>{if(typeof v!=="number"||!Number.isFinite(times[i])){flush();return}segment.push(x(times[i])+","+y(v))});flush();s.values.forEach((v,i)=>{if(typeof v!=="number"||!Number.isFinite(times[i]))return;const c=svgNode("circle",{cx:x(times[i]),cy:y(v),r:2.5,fill:s.color});c.addEventListener("click",()=>{$("detail").textContent=time(rows[i].time)+" — "+s.name+": "+fmt(v)+" "+unit});svg.append(c)})});rows.forEach((r,i)=>{if(!Number.isFinite(times[i]))return;const hit=svgNode("rect",{x:x(times[i])-4,y:25,width:8,height:224,fill:"transparent"});hit.addEventListener("click",()=>{$("detail").textContent=time(r.time)+" — "+series.map(s=>s.name+": "+(typeof s.values[i]==="number"?fmt(s.values[i])+" "+unit:"Mangler")).join(" | ")});svg.append(hit)})}
+// Intervallene i MET Locationforecast starter ved radens tidsstempel.
+// Bruk én-timesintervaller først, deretter seks-timersintervaller uten overlapp.
+// Nedbør: hvert datapunkt representerer et intervall fra tidspunktet og fremover.
+// Bruk 1-timesverdier først, deretter 6-timersverdier uten overlapp.
+// En døgnsum vises bare når hele perioden er dekket.
 function forecastRainBins(rows){
-const now=Date.now(),count=Math.ceil(range/24);
-const groups=[];
-if(forecastRainMode==="rolling"){
-for(let i=0;i<count;i++){
-const a=now+i*86400000,b=a+86400000;
-groups.push({label:"Døgn "+(i+1),a,b,rows:rows.filter(r=>Date.parse(r.time)>=a&&Date.parse(r.time)<b)});
+  const now = Date.now();
+  const start = Math.ceil(now / 3600000) * 3600000;
+  const end = start + range * 3600000;
+  const groups = [];
+
+  if(forecastRainMode === "rolling"){
+    for(let i=0;i<Math.ceil(range/24);i++){
+      const a=start+i*86400000;
+      groups.push({label:"Døgn "+(i+1),a,b:a+86400000});
+    }
+  }else{
+    // Finn ekte lokale midnattstidspunkt, også ved overgang til sommertid.
+    const keys=[];
+    for(let t=start;t<end;t+=3600000){
+      const key=osloDay(new Date(t).toISOString());
+      if(!keys.includes(key))keys.push(key);
+    }
+    const midnight=(key)=>{
+      const guess=Date.parse(key+"T00:00:00Z");
+      for(let t=guess-3*3600000;t<=guess+3*3600000;t+=3600000){
+        if(osloDay(new Date(t).toISOString())===key &&
+           osloDay(new Date(t-3600000).toISOString())!==key)return t;
+      }
+      return NaN;
+    };
+    keys.forEach(key=>{
+      const a=Math.max(start,midnight(key));
+      const next=new Date(Date.parse(key+"T12:00:00Z")+86400000);
+      const nextKey=osloDay(next.toISOString());
+      const b=Math.min(end,midnight(nextKey));
+      groups.push({label:dateLabel(key),key,a,b});
+    });
+  }
+
+  const intervals=[];
+  (forecast?.hours||[]).forEach(r=>{
+    const t=Date.parse(r.time);
+    if(!Number.isFinite(t))return;
+    if(typeof r.precipitation==="number" && Number.isFinite(r.precipitation))
+      intervals.push({a:t,b:t+3600000,mm:r.precipitation});
+    if(typeof r.precipitation6h==="number" && Number.isFinite(r.precipitation6h))
+      intervals.push({a:t,b:t+21600000,mm:r.precipitation6h});
+  });
+
+  return groups.map(g=>{
+    let cursor=g.a,sum=0,observed=0;
+    // Velg korteste gyldige intervall først. Ingen overlapp eller estimater.
+    while(cursor<g.b){
+      const candidates=intervals.filter(p=>p.a===cursor && p.b<=g.b)
+        .sort((a,b)=>a.b-b.b);
+      if(!candidates.length)break;
+      const p=candidates[0];
+      sum+=p.mm;
+      observed++;
+      cursor=p.b;
+    }
+    const complete=Number.isFinite(g.a)&&Number.isFinite(g.b)&&g.b>g.a&&cursor===g.b;
+    return {...g,mm:complete?sum:null,missing:complete?0:1,coarse:false,observed};
+  });
 }
-}else{
-const keys=[];
-for(let t=now;t<now+range*3600000;t+=3600000){
-const key=osloDay(new Date(t).toISOString());
-if(!keys.includes(key))keys.push(key);
-}
-keys.forEach(key=>groups.push({label:dateLabel(key),key,rows:rows.filter(r=>osloDay(r.time)===key)}));
-}
-return groups.map(g=>{
-const known=g.rows.filter(r=>typeof r.precipitation==="number");
-const missing=g.rows.length-known.length;
-// Et punkt med seks timers mellomrom kan ikke uten videre behandles som timesnedbør.
-const intervals=g.rows.slice(1).map((r,i)=>(Date.parse(r.time)-Date.parse(g.rows[i].time))/3600000);
-const coarse=intervals.some(h=>h>1.1);
-const mm=known.length&&!missing&&!coarse?known.reduce((a,r)=>a+r.precipitation,0):null;
-return {...g,mm,missing,coarse,observed:known.length};
-});
-}
-function forecastRainBars(rows){
-const svg=$("forecastGraph");svg.replaceChildren();
-const bins=forecastRainBins(rows);
-const valid=bins.filter(b=>typeof b.mm==="number");
-const max=Math.max(1,...valid.map(b=>b.mm));
-const y=v=>248-v*204/(max*1.2);
-for(let j=0;j<=4;j++){
-const v=max*1.2*j/4,yy=y(v);
-svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));
-svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)));
-}
-svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm/døgn"));
-const w=860/Math.max(1,bins.length);
-bins.forEach((b,i)=>{
-const cx=65+(i+.5)*w;
-if(typeof b.mm==="number"){
-const bw=Math.min(64,w*.58),top=y(b.mm);
-const bar=svgNode("rect",{x:cx-bw/2,y:top,width:bw,height:Math.max(1,248-top),rx:3,fill:"#1679b4"});
-bar.addEventListener("click",()=>{$("detail").textContent=b.label+": "+fmt(b.mm)+" mm"});
-svg.append(bar);
-svg.append(svgNode("text",{x:cx,y:Math.max(24,top-8),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},fmt(b.mm)));
-}else{
-svg.append(svgNode("text",{x:cx,y:239,"text-anchor":"middle",fill:"#8997a4","font-size":15},"–"));
-}
-svg.append(svgNode("text",{x:cx,y:282,"text-anchor":"middle",fill:"#647588","font-size":bins.length>7?11:13},b.label));
-});
-$("detail").textContent="Døgn med manglende eller ikke-timesoppløste nedbørsdata vises blankt (–).";
-}
-function renderForecast(){
-if(!forecast)return;
-const dailyRain=variable==="precipitation"&&range>24;
-$("forecastRainModeButtons").style.display=dailyRain?"block":"none";
-$("dayButtons").style.display=range===72&&!dailyRain?"block":"none";
-if(range===72)$("dayButtons").innerHTML=[0,1,2].map(i=>'<button class="'+(day===i?"active":"")+'" onclick="day='+i+';renderForecast()">Døgn '+(i+1)+'</button>').join("");
-const rows=dailyRain?hours():visibleHours();
-const nums=k=>rows.map(r=>r[k]).filter(v=>typeof v==="number");
-const rain=nums("precipitation"),wind=nums("wind"),gust=nums("gust"),temp=nums("temperature");
-const bins=dailyRain?forecastRainBins(rows):[];
-const rainSum=dailyRain?bins.filter(b=>typeof b.mm==="number").reduce((a,b)=>a+b.mm,0):rain.reduce((a,b)=>a+b,0);
-const rainComplete=dailyRain?bins.length>0&&bins.every(b=>typeof b.mm==="number"):rain.length===rows.length&&rows.length>0;
-$("forecastCards").innerHTML=[
-["Nedbør",(dailyRain?bins.some(b=>typeof b.mm==="number"):rain.length)?fmt(rainSum)+" mm"+(rainComplete?"":" (ufullstendig)"):"–"],
-["Maks vind",wind.length?fmt(Math.max(...wind))+" m/s":"–"],
-["Maks kast",gust.length?fmt(Math.max(...gust))+" m/s":"–"],
-["Temperatur",temp.length?fmt(Math.min(...temp))+" til "+fmt(Math.max(...temp))+" °C":"–"]
-].map(([name,value])=>'<div class="card"><small>'+name+'</small><strong>'+value+'</strong></div>').join("");
-if(dailyRain){
-forecastRainBars(rows);
-$("forecastNote").textContent="Nedbør per "+(forecastRainMode==="rolling"?"rullende 24-timersperiode":"kalenderdøgn")+". Manglende eller grovere oppløste nedbørsverdier vises blankt, ikke som 0 mm. Sumkortet kan være ufullstendig.";
-}else{
-const unit=variable==="temperature"?"°C":variable==="wind"?"m/s":"mm";
-const series=[{name:variable==="temperature"?"Temperatur":variable==="wind"?"Vind":"Nedbør",color:"#1679b4",values:rows.map(r=>typeof r[variable]==="number"?r[variable]:null)}];
-if(variable==="wind")series.push({name:"Vindkast",color:"#b15b9b",values:rows.map(r=>typeof r.gust==="number"?r.gust:null)});
-forecastTimeGraph(rows,series,unit);
-$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. Tidsaksen følger faktiske klokkeslett; prikker viser tilgjengelige prognoseverdier. Manglende verdier vises ikke som null.";
-}
-$("tableArea").innerHTML='<table><thead><tr><th>Tid</th><th>Regn</th><th>Vind</th><th>Kast</th><th>Temp.</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+time(r.time)+'</td><td>'+fmt(r.precipitation)+'</td><td>'+fmt(r.wind)+'</td><td>'+fmt(r.gust)+'</td><td>'+fmt(r.temperature)+'</td></tr>').join("")+'</tbody></table>';
-renderAlerts();
-}
-function renderAlerts(){
-const items=hours().filter(r=>typeof r.gust==="number"&&r.gust>=17||typeof r.precipitation==="number"&&r.precipitation>=4);
-$("alerts").innerHTML=items.length?items.slice(0,12).map(r=>{
-const severe=(r.gust??0)>=25||(r.precipitation??0)>=8;
-const message=[];
-if((r.gust??0)>=17)message.push("Vindkast "+fmt(r.gust)+" m/s");
-if((r.precipitation??0)>=4)message.push("Regn "+fmt(r.precipitation)+" mm");
-return '<p style="border-left:4px solid '+(severe?"#cf3636":"#e2aa25")+';padding:9px;background:#f7f9fb"><b>'+time(r.time)+'</b> – '+message.join(", ")+'</p>';
-}).join(""):"Ingen lokale terskler overskredet i valgt periode.";
-}
+function forecastRainBars(rows){const svg=$("forecastGraph");svg.replaceChildren();const bins=forecastRainBins(rows),valid=bins.filter(b=>typeof b.mm==="number"),max=Math.max(1,...valid.map(b=>b.mm)),y=v=>248-v*204/(max*1.2);for(let j=0;j<=4;j++){const v=max*1.2*j/4,yy=y(v);svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)))}svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm/døgn"));const w=860/Math.max(1,bins.length);bins.forEach((b,i)=>{const cx=65+(i+.5)*w;if(typeof b.mm==="number"){const bw=Math.min(64,w*.58),top=y(b.mm),bar=svgNode("rect",{x:cx-bw/2,y:top,width:bw,height:Math.max(1,248-top),rx:3,fill:"#1679b4"});bar.addEventListener("click",()=>{$("detail").textContent=b.label+": "+fmt(b.mm)+" mm"});svg.append(bar);svg.append(svgNode("text",{x:cx,y:Math.max(24,top-8),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},fmt(b.mm)))}else svg.append(svgNode("text",{x:cx,y:239,"text-anchor":"middle",fill:"#8997a4","font-size":15},"–"));svg.append(svgNode("text",{x:cx,y:282,"text-anchor":"middle",fill:"#647588","font-size":bins.length>7?11:13},b.label))});$("detail").textContent="Manglende eller ikke fullstendig dekkede nedbørsperioder vises blankt (–)."}
+function renderForecast(){if(!forecast)return;const dailyRain=variable==="precipitation"&&range>24;$("forecastRainModeButtons").style.display=dailyRain?"block":"none";$("dayButtons").style.display=range===72&&!dailyRain?"block":"none";if(range===72)$("dayButtons").innerHTML=[0,1,2].map(i=>'<button class="'+(day===i?"active":"")+'" onclick="day='+i+';renderForecast()">Døgn '+(i+1)+'</button>').join("");const rows=dailyRain?hours():visibleHours(),nums=k=>rows.map(r=>r[k]).filter(v=>typeof v==="number"),rain=nums("precipitation"),wind=nums("wind"),gust=nums("gust"),temp=nums("temperature"),bins=dailyRain?forecastRainBins(rows):[],rainSum=dailyRain?bins.filter(b=>typeof b.mm==="number").reduce((a,b)=>a+b.mm,0):rain.reduce((a,b)=>a+b,0),rainComplete=dailyRain?bins.length>0&&bins.every(b=>typeof b.mm==="number"):rain.length===rows.length&&rows.length>0;$("forecastCards").innerHTML=[["Nedbør",(dailyRain?bins.some(b=>typeof b.mm==="number"):rain.length)?fmt(rainSum)+" mm"+(rainComplete?"":" (ufullstendig)"):"–"],["Maks vind",wind.length?fmt(Math.max(...wind))+" m/s":"–"],["Maks kast",gust.length?fmt(Math.max(...gust))+" m/s":"–"],["Temperatur",temp.length?fmt(Math.min(...temp))+" til "+fmt(Math.max(...temp))+" °C":"–"]].map(([n,v])=>'<div class="card"><small>'+n+'</small><strong>'+v+'</strong></div>').join("");if(dailyRain){forecastRainBars(rows);$("forecastNote").textContent="Nedbør per "+(forecastRainMode==="rolling"?"rullende 24-timersperiode":"kalenderdøgn")+". 1- og 6-timersintervaller kombineres uten overlapp. Manglende dekning vises blankt, ikke som 0 mm. Første og siste kalenderdato kan være delvis dekket."}else{const unit=variable==="temperature"?"°C":variable==="wind"?"m/s":"mm",series=[{name:variable==="temperature"?"Temperatur":variable==="wind"?"Vind":"Nedbør",color:"#1679b4",values:rows.map(r=>typeof r[variable]==="number"?r[variable]:null)}];if(variable==="wind")series.push({name:"Vindkast",color:"#b15b9b",values:rows.map(r=>typeof r.gust==="number"?r.gust:null)});forecastTimeGraph(rows,series,unit);$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. Tidsaksen følger faktiske klokkeslett; prikker viser tilgjengelige prognoseverdier. Manglende verdier vises ikke som null."}$("tableArea").innerHTML='<table><thead><tr><th>Tid</th><th>Regn 1t</th><th>Regn 6t</th><th>Vind</th><th>Kast</th><th>Temp.</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+time(r.time)+'</td><td>'+fmt(r.precipitation)+'</td><td>'+fmt(r.precipitation6h)+'</td><td>'+fmt(r.wind)+'</td><td>'+fmt(r.gust)+'</td><td>'+fmt(r.temperature)+'</td></tr>').join("")+'</tbody></table>';renderAlerts()}
+function renderAlerts(){const items=hours().filter(r=>(typeof r.gust==="number"&&r.gust>=17)||(typeof r.precipitation==="number"&&r.precipitation>=4));$("alerts").innerHTML=items.length?items.slice(0,12).map(r=>{const severe=(r.gust??0)>=25||(r.precipitation??0)>=8,message=[];if((r.gust??0)>=17)message.push("Vindkast "+fmt(r.gust)+" m/s");if((r.precipitation??0)>=4)message.push("Regn "+fmt(r.precipitation)+" mm");return '<p style="border-left:4px solid '+(severe?"#cf3636":"#e2aa25")+';padding:9px;background:#f7f9fb"><b>'+time(r.time)+'</b> – '+message.join(", ")+'</p>'}).join(""):"Ingen lokale terskler overskredet i valgt periode."}
 function toggleTable(){$("tableArea").hidden=!$("tableArea").hidden}
-async function loadAll(){
-$("status").textContent="Henter historikk og prognose …";
-const results=await Promise.allSettled([
-fetch(HIST,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()}),
-fetch(FUTURE,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()})
-]);
-const messages=[];
-if(results[0].status==="fulfilled"){
-history=results[0].value;
-renderHistory();
-messages.push("Historikk: OK");
-}else messages.push("Historikk: "+results[0].reason.message);
-if(results[1].status==="fulfilled"){
-forecast=results[1].value;
-renderForecast();
-messages.push("Prognose: OK");
-}else messages.push("Prognose: "+results[1].reason.message);
-$("status").textContent=messages.join(" | ")+" · "+new Date().toLocaleTimeString("nb-NO");
-}
+async function loadAll(){$("status").textContent="Henter historikk og prognose …";const results=await Promise.allSettled([fetch(HIST,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()}),fetch(FUTURE,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.json()})]),messages=[];if(results[0].status==="fulfilled"){history=results[0].value;renderHistory();messages.push("Historikk: OK")}else messages.push("Historikk: "+results[0].reason.message);if(results[1].status==="fulfilled"){forecast=results[1].value;renderForecast();messages.push("Prognose: OK")}else messages.push("Prognose: "+results[1].reason.message);$("status").textContent=messages.join(" | ")+" · "+new Date().toLocaleTimeString("nb-NO")}
 loadAll();
-</script>
-</body>
-</html>
+</script></body></html>
