@@ -85,46 +85,48 @@ function forecastRainBins(rows){
     if(typeof six==="number"&&Number.isFinite(six))
       intervals.push({a:t,b:t+21600000,mm:six});
   });
-  // Bygg én sammenhengende tidslinje med korteste tilgjengelige
-  // intervall. Dette hindrer dobbeltelling av 1t og 6t.
+  // Velg korteste tilgjengelige prognoseintervall ved hvert tidspunkt.
+  // Intervaller som krysser et døgnskille fordeles proporsjonalt
+  // og markeres som omtrentlige. Ingen manglende timer gjøres til null.
   const chosen=[];
   let cursor=start;
   while(cursor<end){
-    const candidates=intervals.filter(p=>p.a===cursor)
-      .sort((x,y)=>x.b-y.b);
-    if(!candidates.length)break;
+    const candidates=intervals.filter(p=>p.a<=cursor&&p.b>cursor)
+      .sort((x,y)=>(x.b-x.a)-(y.b-y.a));
+    if(!candidates.length){
+      const next=Math.min(end,...intervals.filter(p=>p.a>cursor).map(p=>p.a));
+      chosen.push({a:cursor,b:Number.isFinite(next)?next:end,mm:null,approx:false});
+      cursor=Number.isFinite(next)?next:end;
+      continue;
+    }
     const p=candidates[0];
-    chosen.push(p);
-    cursor=p.b;
+    const nextShorter=intervals.filter(q=>q.a>cursor&&q.a<p.b&&
+      q.b-q.a<p.b-p.a).reduce((m,q)=>Math.min(m,q.a),p.b);
+    const stop=Math.min(end,p.b,nextShorter);
+    chosen.push({a:cursor,b:stop,mm:p.mm*(stop-cursor)/(p.b-p.a),
+      approx:p.a!==cursor||stop!==p.b||p.b-p.a>3600000,
+      sourceA:p.a,sourceB:p.b});
+    cursor=stop;
   }
   return groups.map(g=>{
     if(!Number.isFinite(g.a)||!Number.isFinite(g.b)||g.b<=g.a)
       return {...g,mm:null,missing:1,observed:0};
-    if(forecastRainMode==="rolling"){
-      const parts=chosen.filter(p=>p.a>=g.a&&p.b<=g.b);
-      let pos=g.a,sum=0;
-      for(const p of parts){if(p.a!==pos)break;sum+=p.mm;pos=p.b;}
-      const complete=pos===g.b;
-      return {...g,mm:complete?sum:null,missing:complete?0:1,observed:parts.length};
+    const parts=chosen.filter(p=>p.a<g.b&&p.b>g.a);
+    let covered=g.a,sum=0,approx=false;
+    for(const p of parts){
+      const left=Math.max(g.a,p.a),right=Math.min(g.b,p.b);
+      if(left>covered||p.mm===null)break;
+      sum+=p.mm*(right-left)/(p.b-p.a);
+      if(p.approx||left!==p.a||right!==p.b)approx=true;
+      covered=Math.max(covered,right);
     }
-    // Kalenderdøgn: METs 6-timersintervaller kan krysse midnatt.
-    // Vi kan ikke vite hvilken time innenfor 6t regnet faller.
-    // Legg derfor hele intervallet på startdatoen og merk berørte
-    // datoer som omtrentlig, uten å finne på timesfordeling.
-    const parts=chosen.filter(p=>p.a>=g.a&&p.a<g.b);
-    const sum=parts.reduce((v,p)=>v+p.mm,0);
-    const hasStart=chosen.some(p=>p.a<=g.a&&p.b>g.a);
-    const hasEnd=chosen.some(p=>p.a<g.b&&p.b>=g.b);
-    const continuous=parts.every((p,i)=>i===0||parts[i-1].b===p.a);
-    const complete=hasStart&&hasEnd&&continuous&&cursor>=g.b;
-    const crosses=chosen.some(p=>p.a<g.b&&p.b>g.a &&
-      (p.a<g.a||p.b>g.b));
+    const complete=covered>=g.b;
     return {...g,mm:complete?sum:null,missing:complete?0:1,
-      observed:parts.length,approx:crosses};
+      observed:parts.length,approx:complete&&approx};
   });
 }
-function forecastRainBars(rows){const svg=$("forecastGraph");svg.replaceChildren();const bins=forecastRainBins(rows),valid=bins.filter(b=>typeof b.mm==="number"),max=Math.max(1,...valid.map(b=>b.mm)),y=v=>248-v*204/(max*1.2);for(let j=0;j<=4;j++){const v=max*1.2*j/4,yy=y(v);svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)))}svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm/døgn"));const w=860/Math.max(1,bins.length);bins.forEach((b,i)=>{const cx=65+(i+.5)*w;if(typeof b.mm==="number"){const bw=Math.min(64,w*.58),top=y(b.mm),bar=svgNode("rect",{x:cx-bw/2,y:top,width:bw,height:Math.max(1,248-top),rx:3,fill:"#1679b4"});bar.addEventListener("click",()=>{$("detail").textContent=b.label+": "+(b.approx?"ca. ":"")+fmt(b.mm)+" mm"+(b.approx?" (6-timersintervall krysser midnatt)":"")});svg.append(bar);svg.append(svgNode("text",{x:cx,y:Math.max(24,top-8),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},(b.approx?"≈":"")+fmt(b.mm)))}else svg.append(svgNode("text",{x:cx,y:239,"text-anchor":"middle",fill:"#8997a4","font-size":15},"–"));svg.append(svgNode("text",{x:cx,y:282,"text-anchor":"middle",fill:"#647588","font-size":bins.length>7?11:13},b.label))});$("detail").textContent="Manglende eller ikke fullstendig dekkede nedbørsperioder vises blankt (–)."}
-function renderForecast(){if(!forecast)return;const dailyRain=variable==="precipitation"&&range>24;$("rainScenarioButtons").style.display=variable==="precipitation"?"block":"none";$("forecastRainModeButtons").style.display=dailyRain?"block":"none";$("dayButtons").style.display=range===72&&!dailyRain?"block":"none";if(range===72)$("dayButtons").innerHTML=[0,1,2].map(i=>'<button class="'+(day===i?"active":"")+'" onclick="day='+i+';renderForecast()">Døgn '+(i+1)+'</button>').join("");const rows=dailyRain?hours():visibleHours(),nums=k=>rows.map(r=>r[k]).filter(v=>typeof v==="number"),rain=nums(rainScenario==="upper"?"precipitationMax":"precipitation"),wind=nums("wind"),gust=nums("gust"),temp=nums("temperature"),bins=dailyRain?forecastRainBins(rows):[],rainSum=dailyRain?bins.filter(b=>typeof b.mm==="number").reduce((a,b)=>a+b.mm,0):rain.reduce((a,b)=>a+b,0),rainComplete=dailyRain?bins.length>0&&bins.every(b=>typeof b.mm==="number"):rain.length===rows.length&&rows.length>0;$("forecastCards").innerHTML=[[(rainScenario==="upper"?"Nedbør – øvre":"Nedbør"),(dailyRain?bins.some(b=>typeof b.mm==="number"):rain.length)?fmt(rainSum)+" mm"+(rainComplete?"":" (ufullstendig)"):"–"],["Maks vind",wind.length?fmt(Math.max(...wind))+" m/s":"–"],["Maks kast",gust.length?fmt(Math.max(...gust))+" m/s":"–"],["Temperatur",temp.length?fmt(Math.min(...temp))+" til "+fmt(Math.max(...temp))+" °C":"–"]].map(([n,v])=>'<div class="card"><small>'+n+'</small><strong>'+v+'</strong></div>').join("");if(dailyRain){forecastRainBars(rows);$("forecastNote").textContent=(rainScenario==="upper"?"Øvre prognosegrense. ":"Forventet nedbør. ")+"Nedbør per "+(forecastRainMode==="rolling"?"rullende 24-timersperiode":"kalenderdøgn")+". 1- og 6-timersintervaller kombineres uten overlapp. Manglende dekning vises blankt, ikke som 0 mm. Kalenderdøgn med 6-timersintervaller over midnatt merkes ≈: hele intervallet føres på startdatoen, siden eksakt timefordeling er ukjent. Første og siste dato kan være delvis dekket."}else{const unit=variable==="temperature"?"°C":variable==="wind"?"m/s":"mm",series=[{name:variable==="temperature"?"Temperatur":variable==="wind"?"Vind":(rainScenario==="upper"?"Øvre prognose":"Forventet nedbør"),color:"#1679b4",values:rows.map(r=>{const key=variable==="precipitation"&&rainScenario==="upper"?"precipitationMax":variable;return typeof r[key]==="number"?r[key]:null})}];if(variable==="wind")series.push({name:"Vindkast",color:"#b15b9b",values:rows.map(r=>typeof r.gust==="number"?r.gust:null)});forecastTimeGraph(rows,series,unit);$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. Tidsaksen følger faktiske klokkeslett; prikker viser tilgjengelige prognoseverdier. Manglende verdier vises ikke som null."}$("tableArea").innerHTML='<table><thead><tr><th>Tid</th><th>Regn 1t</th><th>Øvre 1t</th><th>Regn 6t</th><th>Øvre 6t</th><th>Vind</th><th>Kast</th><th>Temp.</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+time(r.time)+'</td><td>'+fmt(r.precipitation)+'</td><td>'+fmt(r.precipitationMax)+'</td><td>'+fmt(r.precipitation6h)+'</td><td>'+fmt(r.precipitation6hMax)+'</td><td>'+fmt(r.wind)+'</td><td>'+fmt(r.gust)+'</td><td>'+fmt(r.temperature)+'</td></tr>').join("")+'</tbody></table>';renderAlerts()}
+function forecastRainBars(rows){const svg=$("forecastGraph");svg.replaceChildren();const bins=forecastRainBins(rows),valid=bins.filter(b=>typeof b.mm==="number"),max=Math.max(1,...valid.map(b=>b.mm)),y=v=>248-v*204/(max*1.2);for(let j=0;j<=4;j++){const v=max*1.2*j/4,yy=y(v);svg.append(svgNode("line",{x1:55,x2:925,y1:yy,y2:yy,stroke:"#dfe7ed"}));svg.append(svgNode("text",{x:47,y:yy+4,"text-anchor":"end",fill:"#647588","font-size":12},fmt(v)))}svg.append(svgNode("text",{x:10,y:15,fill:"#647588","font-size":12},"mm/døgn"));const w=860/Math.max(1,bins.length);bins.forEach((b,i)=>{const cx=65+(i+.5)*w;if(typeof b.mm==="number"){const bw=Math.min(64,w*.58),top=y(b.mm),bar=svgNode("rect",{x:cx-bw/2,y:top,width:bw,height:Math.max(1,248-top),rx:3,fill:"#1679b4"});bar.addEventListener("click",()=>{$("detail").textContent=b.label+": "+(b.approx?"ca. ":"")+fmt(b.mm)+" mm"+(b.approx?" (6-timersintervaller fordelt omtrentlig ved døgnskille)":"")});svg.append(bar);svg.append(svgNode("text",{x:cx,y:Math.max(24,top-8),"text-anchor":"middle",fill:"#203346","font-size":13,"font-weight":"bold"},(b.approx?"≈":"")+fmt(b.mm)))}else svg.append(svgNode("text",{x:cx,y:239,"text-anchor":"middle",fill:"#8997a4","font-size":15},"–"));svg.append(svgNode("text",{x:cx,y:282,"text-anchor":"middle",fill:"#647588","font-size":bins.length>7?11:13},b.label))});$("detail").textContent="Manglende eller ikke fullstendig dekkede nedbørsperioder vises blankt (–)."}
+function renderForecast(){if(!forecast)return;const dailyRain=variable==="precipitation"&&range>24;$("rainScenarioButtons").style.display=variable==="precipitation"?"block":"none";$("forecastRainModeButtons").style.display=dailyRain?"block":"none";$("dayButtons").style.display=range===72&&!dailyRain?"block":"none";if(range===72)$("dayButtons").innerHTML=[0,1,2].map(i=>'<button class="'+(day===i?"active":"")+'" onclick="day='+i+';renderForecast()">Døgn '+(i+1)+'</button>').join("");const rows=dailyRain?hours():visibleHours(),nums=k=>rows.map(r=>r[k]).filter(v=>typeof v==="number"),rain=nums(rainScenario==="upper"?"precipitationMax":"precipitation"),wind=nums("wind"),gust=nums("gust"),temp=nums("temperature"),bins=dailyRain?forecastRainBins(rows):[],rainSum=dailyRain?bins.filter(b=>typeof b.mm==="number").reduce((a,b)=>a+b.mm,0):rain.reduce((a,b)=>a+b,0),rainComplete=dailyRain?bins.length>0&&bins.every(b=>typeof b.mm==="number"):rain.length===rows.length&&rows.length>0;$("forecastCards").innerHTML=[[(rainScenario==="upper"?"Nedbør – øvre":"Nedbør"),(dailyRain?bins.some(b=>typeof b.mm==="number"):rain.length)?fmt(rainSum)+" mm"+(rainComplete?"":" (ufullstendig)"):"–"],["Maks vind",wind.length?fmt(Math.max(...wind))+" m/s":"–"],["Maks kast",gust.length?fmt(Math.max(...gust))+" m/s":"–"],["Temperatur",temp.length?fmt(Math.min(...temp))+" til "+fmt(Math.max(...temp))+" °C":"–"]].map(([n,v])=>'<div class="card"><small>'+n+'</small><strong>'+v+'</strong></div>').join("");if(dailyRain){forecastRainBars(rows);$("forecastNote").textContent=(rainScenario==="upper"?"Øvre prognosegrense. ":"Forventet nedbør. ")+"Nedbør per "+(forecastRainMode==="rolling"?"rullende 24-timersperiode":"kalenderdøgn")+". 1- og 6-timersintervaller kombineres uten overlapp. Manglende dekning vises blankt, ikke som 0 mm. Døgn med 6-timersintervaller som må fordeles omtrentlig, merkes ≈. Ved døgnskille fordeles nedbøren proporsjonalt etter tid; faktisk fordeling innen 6 timer er ukjent. Første og siste dato kan være delvis dekket."}else{const unit=variable==="temperature"?"°C":variable==="wind"?"m/s":"mm",series=[{name:variable==="temperature"?"Temperatur":variable==="wind"?"Vind":(rainScenario==="upper"?"Øvre prognose":"Forventet nedbør"),color:"#1679b4",values:rows.map(r=>{const key=variable==="precipitation"&&rainScenario==="upper"?"precipitationMax":variable;return typeof r[key]==="number"?r[key]:null})}];if(variable==="wind")series.push({name:"Vindkast",color:"#b15b9b",values:rows.map(r=>typeof r.gust==="number"?r.gust:null)});forecastTimeGraph(rows,series,unit);$("forecastNote").textContent="Viser "+rows.length+" prognosepunkter. Tidsaksen følger faktiske klokkeslett; prikker viser tilgjengelige prognoseverdier. Manglende verdier vises ikke som null."}$("tableArea").innerHTML='<table><thead><tr><th>Tid</th><th>Regn 1t</th><th>Øvre 1t</th><th>Regn 6t</th><th>Øvre 6t</th><th>Vind</th><th>Kast</th><th>Temp.</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+time(r.time)+'</td><td>'+fmt(r.precipitation)+'</td><td>'+fmt(r.precipitationMax)+'</td><td>'+fmt(r.precipitation6h)+'</td><td>'+fmt(r.precipitation6hMax)+'</td><td>'+fmt(r.wind)+'</td><td>'+fmt(r.gust)+'</td><td>'+fmt(r.temperature)+'</td></tr>').join("")+'</tbody></table>';renderAlerts()}
 function renderAlerts(){const items=hours().filter(r=>(typeof r.gust==="number"&&r.gust>=17)||(typeof r.precipitation==="number"&&r.precipitation>=4));$("alerts").innerHTML=items.length?items.slice(0,12).map(r=>{const severe=(r.gust??0)>=25||(r.precipitation??0)>=8,message=[];if((r.gust??0)>=17)message.push("Vindkast "+fmt(r.gust)+" m/s");if((r.precipitation??0)>=4)message.push("Regn "+fmt(r.precipitation)+" mm");return '<p style="border-left:4px solid '+(severe?"#cf3636":"#e2aa25")+';padding:9px;background:#f7f9fb"><b>'+time(r.time)+'</b> – '+message.join(", ")+'</p>'}).join(""):"Ingen lokale terskler overskredet i valgt periode."}
 function toggleTable(){$("tableArea").hidden=!$("tableArea").hidden}
 
